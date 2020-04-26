@@ -504,7 +504,7 @@ if(USE_FFMPEG)
 					set(PLATFORM_ARCH "android/x86")
 				endif()
 			elseif(IOS)
-				set(PLATFORM_ARCH "ios/universal")
+				set(PLATFORM_ARCH "ios/arm64")
 			elseif(MACOSX)
 				set(PLATFORM_ARCH "macosx/x86_64")
 			elseif(LINUX)
@@ -762,7 +762,7 @@ elseif(IOS)
 		ios/iCade/iCadeState.h
 	)
 	set(nativeExtraLibs ${nativeExtraLibs} "-framework Foundation -framework MediaPlayer -framework AudioToolbox -framework CoreGraphics -framework QuartzCore -framework UIKit -framework GLKit -framework OpenAL -framework AVFoundation -framework CoreLocation -framework CoreVideo -framework CoreMedia" )
-	if(EXISTS "${CMAKE_IOS_SDK_ROOT}/System/Library/Frameworks/GameController.framework")
+	if(EXISTS "${CMAKE_TVOS_SDK_ROOT}/System/Library/Frameworks/GameController.framework")
 		set(nativeExtraLibs ${nativeExtraLibs} "-weak_framework GameController")
 	endif()
 
@@ -1343,12 +1343,13 @@ if(WIN32)
 	list(APPEND GPU_IMPLS ${GPU_D3D9} ${GPU_D3D11})
 endif()
 
-if(ARMV7 OR ARM64)
-	set(GPU_NEON GPU/Common/TextureDecoderNEON.cpp)
-endif()
+# if(ARMV7 OR ARM64)
+# 	set(GPU_NEON GPU/Common/TextureDecoderNEON.cpp)
+# endif()
 set(GPU_SOURCES
 	${GPU_IMPLS}
-	${GPU_NEON}
+	# ${GPU_NEON}
+	GPU/Common/TextureDecoderNEON.cpp
 	GPU/Common/DepalettizeShaderCommon.cpp
 	GPU/Common/DepalettizeShaderCommon.h
 	GPU/Common/FramebufferCommon.cpp
@@ -2040,7 +2041,7 @@ if(NOT ANDROID)
 endif()
 # packaging and code signing
 if(IOS)
-	set(DEPLOYMENT_TARGET 8.0)
+	set(DEPLOYMENT_TARGET 9.0)
 	file(GLOB IOSAssets ios/assets/*.png)
 	list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/ios/assets/Default-568h@2x.png)
 	list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/ios/assets/Default-568h@3x.png)
@@ -2067,10 +2068,10 @@ if(IOS)
 	set(MACOSX_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET})
 	set_target_properties(${TargetBin} PROPERTIES
 		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/ios/PPSSPP-Info.plist"
-		RESOURCE "ios/Launch Screen.storyboard"
+		# RESOURCE "ios/Launch Screen.storyboard"
 		RESOURCE "ios/Settings.bundle"
-		XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}
-		XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "iPhone/iPad"
+		XCODE_ATTRIBUTE_TVOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}
+		# XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "AppleTV"
 		XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
 		XCODE_ATTRIBUTE_ENABLE_BITCODE NO
 		XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "-"

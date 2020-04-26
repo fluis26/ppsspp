@@ -4,12 +4,6 @@
 <dict>
 	<key>UISupportsDocumentBrowser</key>
 	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Your location may be used to emulate Go!Explore, a GPS accessory</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Your camera may be used to emulate Go!Cam, a camera accessory</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Your microphone may be used to emulate Go!Cam/Talkman, a microphone accessory</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -17,7 +11,7 @@
 	<key>CFBundleExecutable</key>
 	<string>PPSSPP</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.ppsspp.ppsspp</string>
+	<string>org.marekvi.ppsspp</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
@@ -36,7 +30,7 @@
 	<false/>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UIStatusBarHidden</key>
 	<true/>
@@ -65,6 +59,7 @@
 	<array>
 		<integer>1</integer>
 		<integer>2</integer>
+		<integer>3</integer>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>Launch Screen</string>

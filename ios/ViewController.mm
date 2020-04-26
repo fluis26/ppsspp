@@ -87,7 +87,7 @@ static bool threadStopped = false;
 
 __unsafe_unretained ViewController* sharedViewController;
 static GraphicsContext *graphicsContext;
-static CameraHelper *cameraHelper;
+//static CameraHelper *cameraHelper;
 static LocationHelper *locationHelper;
 
 @interface ViewController () {
@@ -97,16 +97,16 @@ static LocationHelper *locationHelper;
 @property (nonatomic, strong) EAGLContext* context;
 @property (nonatomic, strong) NSMutableArray<NSDictionary *>* touches;
 //@property (nonatomic) iCadeReaderView* iCadeView;
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 @property (nonatomic) GCController *gameController __attribute__((weak_import));
-#endif
+//#endif
 
 @end
 
-@interface ViewController () <SubtleVolumeDelegate> {
-	SubtleVolume *volume;
-}
-@end
+//@interface ViewController () <SubtleVolumeDelegate> {
+//	SubtleVolume *volume;
+//}
+//@end
 
 
 @implementation ViewController
@@ -132,21 +132,21 @@ static LocationHelper *locationHelper;
 
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appWillTerminate:) name:UIApplicationWillTerminateNotification object:nil];
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 		if ([GCController class]) // Checking the availability of a GameController framework
 		{
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidConnect:) name:GCControllerDidConnectNotification object:nil];
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidDisconnect:) name:GCControllerDidDisconnectNotification object:nil];
 		}
-#endif
+//#endif
 	}
 	return self;
 }
 
-- (void)subtleVolume:(SubtleVolume *)volumeView willChange:(CGFloat)value {
-}
-- (void)subtleVolume:(SubtleVolume *)volumeView didChange:(CGFloat)value {
-}
+//- (void)subtleVolume:(SubtleVolume *)volumeView willChange:(CGFloat)value {
+//}
+//- (void)subtleVolume:(SubtleVolume *)volumeView didChange:(CGFloat)value {
+//}
 
 - (void)viewSafeAreaInsetsDidChange {
 	if (@available(iOS 11.0, *)) {
@@ -166,7 +166,7 @@ static LocationHelper *locationHelper;
 
 	UIScreen* screen = [(AppDelegate*)[UIApplication sharedApplication].delegate screen];
 	self.view.frame = [screen bounds];
-	self.view.multipleTouchEnabled = YES;
+//	self.view.multipleTouchEnabled = YES;
 	self.context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3];
 	
 	if (!self.context) {
@@ -193,35 +193,35 @@ static LocationHelper *locationHelper;
 	self.iCadeView.delegate = self;
 	self.iCadeView.active = YES;*/
 	
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 	if ([GCController class]) {
 		if ([[GCController controllers] count] > 0) {
 			[self setupController:[[GCController controllers] firstObject]];
 		}
 	}
-#endif
+//#endif
 	
 	CGFloat margin = 0;
 	CGFloat height = 16;
-	volume = [[SubtleVolume alloc]
-			  initWithStyle:SubtleVolumeStylePlain
-			  frame:CGRectMake(
-							   margin,   // X
-							   0,        // Y
-							   self.view.frame.size.width-(margin*2), // width
-							   height    // height
-							)];
-	
-	volume.padding = 7;
-	volume.barTintColor = [UIColor blackColor];
-	volume.barBackgroundColor = [UIColor whiteColor];
-	volume.animation = SubtleVolumeAnimationSlideDown;
-	volume.delegate = self;
-	[self.view addSubview:volume];
-	[self.view bringSubviewToFront:volume];
-
-	cameraHelper = [[CameraHelper alloc] init];
-	[cameraHelper setDelegate:self];
+//	volume = [[SubtleVolume alloc]
+//			  initWithStyle:SubtleVolumeStylePlain
+//			  frame:CGRectMake(
+//							   margin,   // X
+//							   0,        // Y
+//							   self.view.frame.size.width-(margin*2), // width
+//							   height    // height
+//							)];
+//
+//	volume.padding = 7;
+//	volume.barTintColor = [UIColor blackColor];
+//	volume.barBackgroundColor = [UIColor whiteColor];
+//	volume.animation = SubtleVolumeAnimationSlideDown;
+//	volume.delegate = self;
+//	[self.view addSubview:volume];
+//	[self.view bringSubviewToFront:volume];
+//
+//	cameraHelper = [[CameraHelper alloc] init];
+//	[cameraHelper setDelegate:self];
 
 	locationHelper = [[LocationHelper alloc] init];
 	[locationHelper setDelegate:self];
@@ -264,10 +264,10 @@ static LocationHelper *locationHelper;
 		return;
 	}
 	
-	if(volume) {
-		[volume removeFromSuperview];
-		volume = nil;
-	}
+//	if(volume) {
+//		[volume removeFromSuperview];
+//		volume = nil;
+//	}
 
 	Audio_Shutdown();
 
@@ -291,11 +291,11 @@ static LocationHelper *locationHelper;
 
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 	if ([GCController class]) {
 		self.gameController = nil;
 	}
-#endif
+//#endif
 
 	if (graphicsContext) {
 		graphicsContext->Shutdown();
@@ -541,7 +541,7 @@ static LocationHelper *locationHelper;
 	
 }
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 - (void)controllerDidConnect:(NSNotification *)note
 {
 	if (![[GCController controllers] containsObject:self.gameController]) self.gameController = nil;
@@ -688,19 +688,19 @@ static LocationHelper *locationHelper;
 		NativeAxis(axisInput);
 	};
 }
-#endif
+//#endif
 
-void setCameraSize(int width, int height) {
-	[cameraHelper setCameraSize: width h:height];
-}
-
-void startVideo() {
-	[cameraHelper startVideo];
-}
-
-void stopVideo() {
-	[cameraHelper stopVideo];
-}
+//void setCameraSize(int width, int height) {
+//	[cameraHelper setCameraSize: width h:height];
+//}
+//
+//void startVideo() {
+//	[cameraHelper startVideo];
+//}
+//
+//void stopVideo() {
+//	[cameraHelper stopVideo];
+//}
 
 -(void) PushCameraImageIOS:(long long)len buffer:(unsigned char*)data {
 	Camera::pushCameraImage(len, data);

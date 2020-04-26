@@ -17,7 +17,8 @@
     if ([locationManager respondsToSelector:@selector(requestWhenInUseAuthorization)]) {
         [locationManager requestWhenInUseAuthorization];
     }
-    [locationManager startUpdatingLocation];
+//    [locationManager startUpdatingLocation];
+      [locationManager requestLocation];
 }
 
 -(void) stopLocationUpdates {

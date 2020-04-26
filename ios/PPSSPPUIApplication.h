@@ -15,7 +15,7 @@
 {
 }
 
-@property (nonatomic, strong) UISelectionFeedbackGenerator *feedbackGenerator;
+//@property (nonatomic, strong) UISelectionFeedbackGenerator *feedbackGenerator;
 
 @end
 

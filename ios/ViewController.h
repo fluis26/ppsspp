@@ -9,16 +9,21 @@
 #import "CameraHelper.h"
 #import "LocationHelper.h"
 
+//@interface ViewController : GLKViewController <iCadeEventDelegate,
+//LocationHandlerDelegate, CameraFrameDelegate>
+
 @interface ViewController : GLKViewController <iCadeEventDelegate,
-            LocationHandlerDelegate, CameraFrameDelegate>
+            LocationHandlerDelegate>
+
+//@interface ViewController : GCEventViewController
 
 - (void)shutdown;
 
 @end
 
 extern __unsafe_unretained ViewController* sharedViewController;
-void setCameraSize(int width, int height);
-void startVideo();
-void stopVideo();
+//void setCameraSize(int width, int height);
+//void startVideo();
+//void stopVideo();
 void startLocation();
 void stopLocation();

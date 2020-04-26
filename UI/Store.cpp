@@ -35,7 +35,8 @@
 #include "UI/Store.h"
 #include "UI/TextureUtil.h"
 
-const std::string storeBaseUrl = "http://store.ppsspp.org/";
+//const std::string storeBaseUrl = "http://store.ppsspp.org/";
+const std::string storeBaseUrl = "http://192.168.1.104:8000/";
 
 // baseUrl is assumed to have a trailing slash, and not contain any subdirectories.
 std::string ResolveUrl(std::string baseUrl, std::string url) {

@@ -41,8 +41,8 @@ kern_return_t catch_exception_raise(mach_port_t exception_port,
 }
 
 void *exception_handler(void *argument) {
-	auto port = *reinterpret_cast<mach_port_t *>(argument);
-	mach_msg_server(exc_server, 2048, port, 0);
+//	auto port = *reinterpret_cast<mach_port_t *>(argument);
+//	mach_msg_server(exc_server, 2048, port, 0);
 	return NULL;
 }
 
@@ -114,15 +114,15 @@ void System_SendMessage(const char *command, const char *parameter) {
 		// [sharedViewController shutdown];
 		//	exit(0);
 		// });
-	} else if (!strcmp(command, "camera_command")) {
-		if (!strncmp(parameter, "startVideo", 10)) {
-			int width = 0, height = 0;
-			sscanf(parameter, "startVideo_%dx%d", &width, &height);
-			setCameraSize(width, height);
-			startVideo();
-		} else if (!strcmp(parameter, "stopVideo")) {
-			stopVideo();
-		}
+//	} else if (!strcmp(command, "camera_command")) {
+//		if (!strncmp(parameter, "startVideo", 10)) {
+//			int width = 0, height = 0;
+//			sscanf(parameter, "startVideo_%dx%d", &width, &height);
+//			setCameraSize(width, height);
+//			startVideo();
+//		} else if (!strcmp(parameter, "stopVideo")) {
+//			stopVideo();
+//		}
 	} else if (!strcmp(command, "gps_command")) {
 		if (!strcmp(parameter, "open")) {
 			startLocation();
@@ -164,18 +164,18 @@ BOOL SupportsTaptic()
 
 void Vibrate(int mode) {
 
-	if(SupportsTaptic())
-	{
-		PPSSPPUIApplication* app = (PPSSPPUIApplication*)[UIApplication sharedApplication];
-		if(app.feedbackGenerator == nil)
-		{
-			app.feedbackGenerator = [[UISelectionFeedbackGenerator alloc] init];
-			[app.feedbackGenerator prepare];
-		}
-		[app.feedbackGenerator selectionChanged];
-	}
-	else
-	{
+//	if(SupportsTaptic())
+//	{
+//		PPSSPPUIApplication* app = (PPSSPPUIApplication*)[UIApplication sharedApplication];
+//		if(app.feedbackGenerator == nil)
+//		{
+//			app.feedbackGenerator = [[UISelectionFeedbackGenerator alloc] init];
+//			[app.feedbackGenerator prepare];
+//		}
+//		[app.feedbackGenerator selectionChanged];
+//	}
+//	else
+//	{
 		NSMutableDictionary *dictionary = [NSMutableDictionary dictionary];
 		NSArray *pattern = @[@YES, @30, @NO, @2];
 
@@ -183,7 +183,7 @@ void Vibrate(int mode) {
 		dictionary[@"Intensity"] = @2;
 
 		AudioServicesPlaySystemSoundWithVibration(kSystemSoundID_Vibrate, nil, dictionary);
-	}
+//	}
 }
 
 int main(int argc, char *argv[])
@@ -193,29 +193,30 @@ int main(int argc, char *argv[])
 	ptrace = reinterpret_cast<decltype(ptrace)>(dlsym(dlopen(NULL, RTLD_LAZY), "ptrace"));
 	// see https://github.com/hrydgard/ppsspp/issues/11905
 	if (!cs_debugged()) {
-		pid_t pid = fork();
-		if (pid == 0) {
-			ptrace(PT_TRACE_ME, 0, nullptr, 0);
-			exit(0);
-		} else if (pid < 0) {
-			perror("Unable to fork");
-
-			ptrace(PT_TRACE_ME, 0, nullptr, 0);
-			ptrace(PT_SIGEXC, 0, nullptr, 0);
-			
-			mach_port_t port = MACH_PORT_NULL;
-			mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &port);
-			mach_port_insert_right(mach_task_self(), port, port, MACH_MSG_TYPE_MAKE_SEND);
-			task_set_exception_ports(mach_task_self(), EXC_MASK_SOFTWARE, port, EXCEPTION_DEFAULT, THREAD_STATE_NONE);
-			pthread_t thread;
-			pthread_create(&thread, nullptr, exception_handler, reinterpret_cast<void *>(&port));
-		}
+//		pid_t pid = fork();
+//		if (pid == 0) {
+//			ptrace(PT_TRACE_ME, 0, nullptr, 0);
+//			exit(0);
+//		} else if (pid < 0) {
+//			perror("Unable to fork");
+//
+//			ptrace(PT_TRACE_ME, 0, nullptr, 0);
+//			ptrace(PT_SIGEXC, 0, nullptr, 0);
+//			
+//			mach_port_t port = MACH_PORT_NULL;
+//			mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &port);
+//			mach_port_insert_right(mach_task_self(), port, port, MACH_MSG_TYPE_MAKE_SEND);
+////			task_set_exception_ports(mach_task_self(), EXC_MASK_SOFTWARE, port, EXCEPTION_DEFAULT, THREAD_STATE_NONE);
+//			pthread_t thread;
+//			pthread_create(&thread, nullptr, exception_handler, reinterpret_cast<void *>(&port));
+//		}
 	}
 
 	PROFILE_INIT();
 
 	@autoreleasepool {
-		NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+//		NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+        NSString *documentsPath = [NSSearchPathForDirectoriesInDomains(NSCachesDirectory, NSUserDomainMask, YES) objectAtIndex:0];
 		NSString *bundlePath = [[[NSBundle mainBundle] resourcePath] stringByAppendingString:@"/assets/"];
 
 		NativeInit(argc, (const char**)argv, documentsPath.UTF8String, bundlePath.UTF8String, NULL);
