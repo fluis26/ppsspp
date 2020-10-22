@@ -19,23 +19,24 @@
 #include <deque>
 #include <mutex>
 
-#include "base/colorutil.h"
-#include "base/logging.h"
-#include "base/display.h"
-#include "gfx/texture_atlas.h"
-#include "i18n/i18n.h"
-#include "input/keycodes.h"
-#include "input/input_state.h"
-#include "ui/root.h"
-#include "ui/ui.h"
-#include "ui/ui_context.h"
-#include "ui/view.h"
-#include "ui/viewgroup.h"
+#include "Common/Render/TextureAtlas.h"
+#include "Common/UI/Root.h"
+#include "Common/UI/UI.h"
+#include "Common/UI/Context.h"
+#include "Common/UI/View.h"
+#include "Common/UI/ViewGroup.h"
 
+#include "Common/Log.h"
+#include "Common/Data/Color/RGBAUtil.h"
+#include "Common/Data/Text/I18n.h"
+#include "Common/Input/KeyCodes.h"
+#include "Common/Input/InputState.h"
+#include "Common/System/Display.h"
+#include "Common/System/System.h"
+#include "Core/KeyMap.h"
 #include "Core/Host.h"
 #include "Core/HLE/sceCtrl.h"
 #include "Core/System.h"
-#include "Common/KeyMap.h"
 #include "Core/Config.h"
 #include "UI/ControlMappingScreen.h"
 #include "UI/GameSettingsScreen.h"
@@ -582,7 +583,7 @@ bool TouchTestScreen::touch(const TouchInput &touch) {
 		bool found = false;
 		for (int i = 0; i < MAX_TOUCH_POINTS; i++) {
 			if (touches_[i].id == touch.id) {
-				WLOG("Double touch");
+				WARN_LOG(SYSTEM, "Double touch");
 				touches_[i].x = touch.x;
 				touches_[i].y = touch.y;
 				found = true;
@@ -609,7 +610,7 @@ bool TouchTestScreen::touch(const TouchInput &touch) {
 			}
 		}
 		if (!found) {
-			WLOG("Move without touch down: %d", touch.id);
+			WARN_LOG(SYSTEM, "Move without touch down: %d", touch.id);
 		}
 	}
 	if (touch.flags & TOUCH_UP) {
@@ -622,7 +623,7 @@ bool TouchTestScreen::touch(const TouchInput &touch) {
 			}
 		}
 		if (!found) {
-			WLOG("Touch release without touch down");
+			WARN_LOG(SYSTEM, "Touch release without touch down");
 		}
 	}
 	return true;
@@ -636,6 +637,25 @@ void TouchTestScreen::CreateViews() {
 	root_ = new LinearLayout(ORIENT_VERTICAL);
 	LinearLayout *theTwo = new LinearLayout(ORIENT_HORIZONTAL, new LinearLayoutParams(1.0f));
 	root_->Add(theTwo);
+
+#if !PPSSPP_PLATFORM(UWP)
+	static const char *renderingBackend[] = { "OpenGL", "Direct3D 9", "Direct3D 11", "Vulkan" };
+	PopupMultiChoice *renderingBackendChoice = root_->Add(new PopupMultiChoice(&g_Config.iGPUBackend, gr->T("Backend"), renderingBackend, (int)GPUBackend::OPENGL, ARRAY_SIZE(renderingBackend), gr->GetName(), screenManager()));
+	renderingBackendChoice->OnChoice.Handle(this, &TouchTestScreen::OnRenderingBackend);
+
+	if (!g_Config.IsBackendEnabled(GPUBackend::OPENGL))
+		renderingBackendChoice->HideChoice((int)GPUBackend::OPENGL);
+	if (!g_Config.IsBackendEnabled(GPUBackend::DIRECT3D9))
+		renderingBackendChoice->HideChoice((int)GPUBackend::DIRECT3D9);
+	if (!g_Config.IsBackendEnabled(GPUBackend::DIRECT3D11))
+		renderingBackendChoice->HideChoice((int)GPUBackend::DIRECT3D11);
+	if (!g_Config.IsBackendEnabled(GPUBackend::VULKAN))
+		renderingBackendChoice->HideChoice((int)GPUBackend::VULKAN);
+#endif
+
+#if PPSSPP_PLATFORM(ANDROID)
+	root_->Add(new Choice(gr->T("Recreate Activity")))->OnClick.Handle(this, &TouchTestScreen::OnRecreateActivity);
+#endif
 	root_->Add(new CheckBox(&g_Config.bImmersiveMode, gr->T("FullScreen", "Full Screen")))->OnClick.Handle(this, &TouchTestScreen::OnImmersiveModeChange);
 	root_->Add(new Button(di->T("Back")))->OnClick.Handle<UIScreen>(this, &UIScreen::OnBack);
 }
@@ -687,7 +707,7 @@ void TouchTestScreen::render() {
 		g_dpi_scale_x, g_dpi_scale_y,
 		g_dpi_scale_real_x, g_dpi_scale_real_y);
 
-	ui_context->DrawTextShadow(buffer, bounds.x + 20.0f, dp_yres / 2.0f, 0xFFFFFFFF, ALIGN_VCENTER | FLAG_DYNAMIC_ASCII);
+	ui_context->DrawTextShadow(buffer, bounds.x + 20.0f, bounds.y + 20.0f, 0xFFFFFFFF, FLAG_DYNAMIC_ASCII);
 	ui_context->Flush();
 }
 
@@ -698,5 +718,16 @@ UI::EventReturn TouchTestScreen::OnImmersiveModeChange(UI::EventParams &e) {
 	if (g_Config.iAndroidHwScale != 0) {
 		RecreateActivity();
 	}
+	return UI::EVENT_DONE;
+}
+
+UI::EventReturn TouchTestScreen::OnRenderingBackend(UI::EventParams &e) {
+	g_Config.Save("GameSettingsScreen::RenderingBackend");
+	System_SendMessage("graphics_restart", "--touchscreentest");
+	return UI::EVENT_DONE;
+}
+
+UI::EventReturn TouchTestScreen::OnRecreateActivity(UI::EventParams &e) {
+	RecreateActivity();
 	return UI::EVENT_DONE;
 }

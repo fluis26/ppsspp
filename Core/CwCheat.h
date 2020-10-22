@@ -8,7 +8,6 @@
 #include <iostream>
 #include <sstream>
 
-#include "base/basictypes.h"
 #include "Core/MemMap.h"
 
 class PointerWrap;
@@ -53,7 +52,6 @@ public:
 	std::string CheatFilename();
 	void Run();
 	bool HasCheats();
-
 	void InvalidateICache(u32 addr, int size);
 private:
 	u32 GetAddress(u32 value);

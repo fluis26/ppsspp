@@ -19,21 +19,23 @@
 #include <algorithm>
 
 #include "ppsspp_config.h"
-#include "base/colorutil.h"
-#include "base/display.h"
-#include "base/timeutil.h"
-#include "file/path.h"
-#include "gfx/texture_atlas.h"
-#include "gfx_es2/draw_buffer.h"
-#include "math/curves.h"
-#include "base/stringutil.h"
-#include "ui/root.h"
-#include "ui/ui_context.h"
-#include "ui/view.h"
-#include "ui/viewgroup.h"
-#include "util/text/utf8.h"
 
-#include "Common/FileUtil.h"
+#include "Common/System/Display.h"
+#include "Common/System/System.h"
+#include "Common/Render/TextureAtlas.h"
+#include "Common/Render/DrawBuffer.h"
+#include "Common/UI/Root.h"
+#include "Common/UI/Context.h"
+#include "Common/UI/View.h"
+#include "Common/UI/ViewGroup.h"
+
+#include "Common/Data/Color/RGBAUtil.h"
+#include "Common/Data/Encoding/Utf8.h"
+#include "Common/File/PathBrowser.h"
+#include "Common/Math/curves.h"
+#include "Common/File/FileUtil.h"
+#include "Common/TimeUtil.h"
+#include "Common/StringUtils.h"
 #include "Core/System.h"
 #include "Core/Host.h"
 #include "Core/Reporting.h"
@@ -52,10 +54,11 @@
 #include "UI/DisplayLayoutScreen.h"
 #include "UI/SavedataScreen.h"
 #include "UI/Store.h"
+#include "UI/InstallZipScreen.h"
 #include "Core/Config.h"
 #include "Core/Loaders.h"
 #include "GPU/GPUInterface.h"
-#include "i18n/i18n.h"
+#include "Common/Data/Text/I18n.h"
 
 #include "Core/HLE/sceDisplay.h"
 #include "Core/HLE/sceUmd.h"
@@ -73,6 +76,28 @@
 #include <sstream>
 
 bool MainScreen::showHomebrewTab = false;
+
+bool LaunchFile(ScreenManager *screenManager, std::string path) {
+	// Depending on the file type, we don't want to launch EmuScreen at all.
+	auto loader = ConstructFileLoader(path);
+	if (!loader) {
+		return false;
+	}
+
+	IdentifiedFileType type = Identify_File(loader);
+	delete loader;
+
+	switch (type) {
+	case IdentifiedFileType::ARCHIVE_ZIP:
+		screenManager->push(new InstallZipScreen(path));
+		break;
+	default:
+		// Let the EmuScreen take care of it.
+		screenManager->switchScreen(new EmuScreen(path));
+		break;
+	}
+	return true;
+}
 
 static bool IsTempPath(const std::string &str) {
 	std::string item = str;
@@ -294,7 +319,7 @@ void GameButton::Draw(UIContext &dc) {
 		if (HasFocus()) {
 			dc.Draw()->Flush();
 			dc.RebindTexture();
-			float pulse = sinf(time_now() * 7.0f) * 0.25 + 0.8;
+			float pulse = sin(time_now_d() * 7.0) * 0.25 + 0.8;
 			dc.Draw()->DrawImage4Grid(dc.theme->dropShadow4Grid, x - dropsize*1.5f, y - dropsize*1.5f, x + w + dropsize*1.5f, y + h + dropsize*1.5f, alphaMul(color, pulse), 1.0f);
 			dc.Draw()->Flush();
 		} else {
@@ -601,7 +626,7 @@ void GameBrowser::Draw(UIContext &dc) {
 	}
 }
 
-static bool IsValidPBP(const std::string &path) {
+static bool IsValidPBP(const std::string &path, bool allowHomebrew) {
 	if (!File::Exists(path))
 		return false;
 
@@ -613,7 +638,7 @@ static bool IsValidPBP(const std::string &path) {
 
 	ParamSFOData sfo;
 	sfo.ReadSFO(sfoData);
-	if (sfo.GetValueString("DISC_ID").empty())
+	if (!allowHomebrew && sfo.GetValueString("DISC_ID").empty())
 		return false;
 
 	if (sfo.GetValueString("CATEGORY") == "ME")
@@ -628,7 +653,6 @@ void GameBrowser::Refresh() {
 	lastScale_ = g_Config.fGameGridScale;
 	lastLayoutWasGrid_ = *gridStyle_;
 
-	homebrewStoreButton_ = nullptr;
 	// Kill all the contents
 	Clear();
 
@@ -706,7 +730,7 @@ void GameBrowser::Refresh() {
 			bool isGame = !fileInfo[i].isDirectory;
 			bool isSaveData = false;
 			// Check if eboot directory
-			if (!isGame && path_.GetPath().size() >= 4 && IsValidPBP(path_.GetPath() + fileInfo[i].name + "/EBOOT.PBP"))
+			if (!isGame && path_.GetPath().size() >= 4 && IsValidPBP(path_.GetPath() + fileInfo[i].name + "/EBOOT.PBP", true))
 				isGame = true;
 			else if (!isGame && File::Exists(path_.GetPath() + fileInfo[i].name + "/PSP_GAME/SYSDIR"))
 				isGame = true;
@@ -785,9 +809,7 @@ void GameBrowser::Refresh() {
 
 	if (browseFlags_ & BrowseFlags::HOMEBREW_STORE) {
 		Add(new Spacer());
-		homebrewStoreButton_ = Add(new Choice(mm->T("DownloadFromStore", "Download from the PPSSPP Homebrew Store"), new UI::LinearLayoutParams(UI::WRAP_CONTENT, UI::WRAP_CONTENT)));
-	} else {
-		homebrewStoreButton_ = nullptr;
+		Add(new Choice(mm->T("DownloadFromStore", "Download from the PPSSPP Homebrew Store"), new UI::LinearLayoutParams(UI::WRAP_CONTENT, UI::WRAP_CONTENT)))->OnClick.Handle(this, &GameBrowser::OnHomebrewStore);
 	}
 
 	if (!lastText_.empty() && gameButtons.empty()) {
@@ -908,16 +930,20 @@ UI::EventReturn GameBrowser::OnRecentClear(UI::EventParams &e) {
 	return UI::EVENT_DONE;
 }
 
-MainScreen::MainScreen() : highlightProgress_(0.0f), prevHighlightProgress_(0.0f), backFromStore_(false), lockBackgroundAudio_(false) {
+UI::EventReturn GameBrowser::OnHomebrewStore(UI::EventParams &e) {
+	screenManager_->push(new StoreScreen());
+	return UI::EVENT_DONE;
+}
+
+MainScreen::MainScreen() {
 	System_SendMessage("event", "mainscreen");
-	SetBackgroundAudioGame("");
+	g_BackgroundAudio.SetGame("");
 	lastVertical_ = UseVerticalLayout();
 }
 
 MainScreen::~MainScreen() {
-	SetBackgroundAudioGame("");
+	g_BackgroundAudio.SetGame("");
 }
-
 
 void MainScreen::CreateViews() {
 	// Information in the top left.
@@ -973,11 +999,6 @@ void MainScreen::CreateViews() {
 		GameBrowser *tabHomebrew = new GameBrowser(GetSysDirectory(DIRECTORY_GAME), BrowseFlags::HOMEBREW_STORE, &g_Config.bGridView3, screenManager(),
 			mm->T("How to get homebrew & demos", "How to get homebrew && demos"), "https://www.ppsspp.org/gethomebrew.html",
 			new LinearLayoutParams(FILL_PARENT, FILL_PARENT));
-
-		Choice *hbStore = tabHomebrew->HomebrewStoreButton();
-		if (hbStore) {
-			hbStore->OnClick.Handle(this, &MainScreen::OnHomebrewStore);
-		}
 
 		scrollAllGames->Add(tabAllGames);
 		gameBrowsers_.push_back(tabAllGames);
@@ -1159,7 +1180,7 @@ void MainScreen::sendMessage(const char *message, const char *value) {
 
 	if (screenManager()->topScreen() == this) {
 		if (!strcmp(message, "boot")) {
-			screenManager()->switchScreen(new EmuScreen(value));
+			LaunchFile(screenManager(), std::string(value));
 		}
 		if (!strcmp(message, "browse_folderSelect")) {
 			int tab = tabHolder_->GetCurrentTab();
@@ -1264,7 +1285,7 @@ UI::EventReturn MainScreen::OnGameSelected(UI::EventParams &e) {
 
 	// Restore focus if it was highlighted (e.g. by gamepad.)
 	restoreFocusGamePath_ = highlightedGamePath_;
-	SetBackgroundAudioGame(path);
+	g_BackgroundAudio.SetGame(path);
 	lockBackgroundAudio_ = true;
 	screenManager()->push(new GameScreen(path));
 	return UI::EVENT_DONE;
@@ -1295,7 +1316,7 @@ UI::EventReturn MainScreen::OnGameHighlight(UI::EventParams &e) {
 	}
 
 	if ((!highlightedGamePath_.empty() || e.a == FF_LOSTFOCUS) && !lockBackgroundAudio_) {
-		SetBackgroundAudioGame(highlightedGamePath_);
+		g_BackgroundAudio.SetGame(highlightedGamePath_);
 	}
 
 	lockBackgroundAudio_ = false;
@@ -1308,8 +1329,8 @@ UI::EventReturn MainScreen::OnGameSelectedInstant(UI::EventParams &e) {
 #else
 	std::string path = e.s;
 #endif
-	// Go directly into the game.
-	screenManager()->switchScreen(new EmuScreen(path));
+	ScreenManager *screen = screenManager();
+	LaunchFile(screen, path);
 	return UI::EVENT_DONE;
 }
 
@@ -1320,11 +1341,6 @@ UI::EventReturn MainScreen::OnGameSettings(UI::EventParams &e) {
 
 UI::EventReturn MainScreen::OnCredits(UI::EventParams &e) {
 	screenManager()->push(new CreditsScreen());
-	return UI::EVENT_DONE;
-}
-
-UI::EventReturn MainScreen::OnHomebrewStore(UI::EventParams &e) {
-	screenManager()->push(new StoreScreen());
 	return UI::EVENT_DONE;
 }
 
@@ -1387,7 +1403,7 @@ void MainScreen::dialogFinished(const Screen *dialog, DialogResult result) {
 			restoreFocusGamePath_.clear();
 		} else {
 			// Not refocusing, so we need to stop the audio.
-			SetBackgroundAudioGame("");
+			g_BackgroundAudio.SetGame("");
 		}
 	}
 }

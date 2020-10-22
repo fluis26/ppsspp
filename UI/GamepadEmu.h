@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include "input/input_state.h"
-#include "gfx_es2/draw_buffer.h"
+#include "Common/Input/InputState.h"
+#include "Common/Render/DrawBuffer.h"
 
-#include "ui/view.h"
-#include "ui/viewgroup.h"
+#include "Common/UI/View.h"
+#include "Common/UI/ViewGroup.h"
 #include "Core/CoreParameter.h"
 
 class GamepadView : public UI::View {
@@ -37,8 +37,8 @@ public:
 protected:
 	virtual float GetButtonOpacity();
 
-	float lastFrameTime_;
-	float secondsWithoutTouch_;
+	double lastFrameTime_;
+	float secondsWithoutTouch_ = 0.0;
 };
 
 class MultiTouchButton : public GamepadView {
@@ -160,9 +160,7 @@ public:
 	void Draw(UIContext &dc) override;
 	void GetContentDimensions(const UIContext &dc, float &w, float &h) const override;
 
-private:
-	void ProcessTouch(float x, float y, bool down);
-
+protected:
 	int dragPointerId_;
 	ImageID bgImg_;
 	ImageID stickImageIndex_;
@@ -174,6 +172,23 @@ private:
 
 	float centerX_;
 	float centerY_;
+
+private:
+	void ProcessTouch(float x, float y, bool down);
+};
+
+class PSPCustomStick : public PSPStick {
+public:
+	PSPCustomStick(ImageID bgImg, ImageID stickImg, ImageID stickDownImg, float scale, UI::LayoutParams *layoutParams);
+
+	void Touch(const TouchInput &input) override;
+	void Draw(UIContext &dc) override;
+
+private:
+	void ProcessTouch(float x, float y, bool down);
+
+	float posX_ = 0.0f;
+	float posY_ = 0.0f;
 };
 
 //initializes the layout from Config. if a default layout does not exist,

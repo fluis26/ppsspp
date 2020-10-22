@@ -17,6 +17,7 @@
 
 //@interface ViewController : GCEventViewController
 
+- (void)shareText:(NSString *)text;
 - (void)shutdown;
 
 @end

@@ -22,10 +22,10 @@
 #include <mutex>
 #include <vector>
 
-#include "i18n/i18n.h"
-#include "ui/view.h"
-#include "ui/ui_screen.h"
+#include "Common/UI/View.h"
+#include "Common/UI/UIScreen.h"
 
+#include "Common/Data/Text/I18n.h"
 #include "UI/MiscScreens.h"
 
 class ControlMapper;
@@ -132,6 +132,9 @@ protected:
 	};
 	TrackedTouch touches_[MAX_TOUCH_POINTS]{};
 
-	virtual void CreateViews() override;
+	void CreateViews() override;
+
 	UI::EventReturn OnImmersiveModeChange(UI::EventParams &e);
+	UI::EventReturn OnRenderingBackend(UI::EventParams &e);
+	UI::EventReturn OnRecreateActivity(UI::EventParams &e);
 };

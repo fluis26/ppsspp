@@ -15,15 +15,15 @@
 // Official git repository and contact information can be found at
 // https://github.com/hrydgard/ppsspp and http://www.ppsspp.org/.
 
-#include <cassert>
+#include <algorithm>
 
-#include "base/logging.h"
-#include "base/timeutil.h"
-#include "math/dataconv.h"
-#include "profiler/profiler.h"
-#include "thin3d/VulkanRenderManager.h"
+#include "Common/Data/Convert/SmallDataConvert.h"
+#include "Common/Profiler/Profiler.h"
+#include "Common/GPU/Vulkan/VulkanRenderManager.h"
 
+#include "Common/Log.h"
 #include "Common/MemoryUtil.h"
+#include "Common/TimeUtil.h"
 #include "Core/MemMap.h"
 #include "Core/System.h"
 #include "Core/Reporting.h"
@@ -34,10 +34,9 @@
 #include "GPU/GPUState.h"
 #include "GPU/ge_constants.h"
 
-#include "Common/Vulkan/VulkanContext.h"
-#include "Common/Vulkan/VulkanMemory.h"
+#include "Common/GPU/Vulkan/VulkanContext.h"
+#include "Common/GPU/Vulkan/VulkanMemory.h"
 
-#include "GPU/Common/TextureDecoder.h"
 #include "GPU/Common/SplineCommon.h"
 #include "GPU/Common/TransformCommon.h"
 #include "GPU/Common/VertexDecoderCommon.h"
@@ -48,7 +47,7 @@
 #include "GPU/Vulkan/TextureCacheVulkan.h"
 #include "GPU/Vulkan/ShaderManagerVulkan.h"
 #include "GPU/Vulkan/PipelineManagerVulkan.h"
-#include "GPU/Vulkan/FramebufferVulkan.h"
+#include "GPU/Vulkan/FramebufferManagerVulkan.h"
 #include "GPU/Vulkan/GPU_Vulkan.h"
 
 
@@ -142,7 +141,7 @@ void DrawEngineVulkan::InitDeviceObjects() {
 	dsl.bindingCount = ARRAY_SIZE(bindings);
 	dsl.pBindings = bindings;
 	VkResult res = vkCreateDescriptorSetLayout(device, &dsl, nullptr, &descriptorSetLayout_);
-	assert(VK_SUCCESS == res);
+	_dbg_assert_(VK_SUCCESS == res);
 
 	// We are going to use one-shot descriptors in the initial implementation. Might look into caching them
 	// if creating and updating them turns out to be expensive.
@@ -164,7 +163,7 @@ void DrawEngineVulkan::InitDeviceObjects() {
 	pl.pSetLayouts = &descriptorSetLayout_;
 	pl.flags = 0;
 	res = vkCreatePipelineLayout(device, &pl, nullptr, &pipelineLayout_);
-	assert(VK_SUCCESS == res);
+	_dbg_assert_(VK_SUCCESS == res);
 
 	VkSamplerCreateInfo samp{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 	samp.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -175,8 +174,9 @@ void DrawEngineVulkan::InitDeviceObjects() {
 	samp.magFilter = VK_FILTER_NEAREST;
 	samp.minFilter = VK_FILTER_NEAREST;
 	res = vkCreateSampler(device, &samp, nullptr, &samplerSecondary_);
+	_dbg_assert_(VK_SUCCESS == res);
 	res = vkCreateSampler(device, &samp, nullptr, &nullSampler_);
-	assert(VK_SUCCESS == res);
+	_dbg_assert_(VK_SUCCESS == res);
 
 	vertexCache_ = new VulkanPushBuffer(vulkan_, VERTEX_CACHE_SIZE, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
 
@@ -259,8 +259,9 @@ void DrawEngineVulkan::DeviceRestore(VulkanContext *vulkan, Draw::DrawContext *d
 }
 
 void DrawEngineVulkan::BeginFrame() {
-	// Too many issues right now to allow reuse.
 	lastPipeline_ = nullptr;
+
+	lastRenderStepId_ = -1;
 
 	int curFrame = vulkan_->GetCurFrame();
 	FrameData *frame = &frame_[curFrame];
@@ -289,6 +290,9 @@ void DrawEngineVulkan::BeginFrame() {
 		vertexCache_->Destroy(vulkan_);
 		delete vertexCache_;  // orphans the buffers, they'll get deleted once no longer used by an in-flight frame.
 		vertexCache_ = new VulkanPushBuffer(vulkan_, VERTEX_CACHE_SIZE, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+		vai_.Iterate([&](uint32_t hash, VertexArrayInfoVulkan *vai) {
+			delete vai;
+		});
 		vai_.Clear();
 	}
 
@@ -384,6 +388,10 @@ VkResult DrawEngineVulkan::RecreateDescriptorPool(FrameData &frame, int newSize)
 }
 
 VkDescriptorSet DrawEngineVulkan::GetOrCreateDescriptorSet(VkImageView imageView, VkSampler sampler, VkBuffer base, VkBuffer light, VkBuffer bone, bool tess) {
+	_dbg_assert_(base != VK_NULL_HANDLE);
+	_dbg_assert_(light != VK_NULL_HANDLE);
+	_dbg_assert_(bone != VK_NULL_HANDLE);
+
 	DescriptorSetKey key;
 	key.imageView_ = imageView;
 	key.sampler_ = sampler;
@@ -392,9 +400,6 @@ VkDescriptorSet DrawEngineVulkan::GetOrCreateDescriptorSet(VkImageView imageView
 	key.base_ = base;
 	key.light_ = light;
 	key.bone_ = bone;
-	_dbg_assert_(G3D, base != VK_NULL_HANDLE);
-	_dbg_assert_(G3D, light != VK_NULL_HANDLE);
-	_dbg_assert_(G3D, bone != VK_NULL_HANDLE);
 
 	FrameData &frame = frame_[vulkan_->GetCurFrame()];
 	// See if we already have this descriptor set cached.
@@ -406,7 +411,7 @@ VkDescriptorSet DrawEngineVulkan::GetOrCreateDescriptorSet(VkImageView imageView
 
 	if (!frame.descPool || frame.descPoolSize < frame.descCount + 1) {
 		VkResult res = RecreateDescriptorPool(frame, frame.descPoolSize * 2);
-		assert(res == VK_SUCCESS);
+		_dbg_assert_(res == VK_SUCCESS);
 	}
 
 	// Didn't find one in the frame descriptor set cache, let's make a new one.
@@ -424,26 +429,24 @@ VkDescriptorSet DrawEngineVulkan::GetOrCreateDescriptorSet(VkImageView imageView
 		// so let's do that. See https://www.khronos.org/registry/vulkan/specs/1.0/man/html/vkAllocateDescriptorSets.html
 		// Fragmentation shouldn't really happen though since we wipe the pool every frame..
 		VkResult res = RecreateDescriptorPool(frame, frame.descPoolSize);
-		_assert_msg_(G3D, res == VK_SUCCESS, "Ran out of descriptor space (frag?) and failed to recreate a descriptor pool. sz=%d res=%d", (int)frame.descSets.size(), (int)res);
+		_assert_msg_(res == VK_SUCCESS, "Ran out of descriptor space (frag?) and failed to recreate a descriptor pool. sz=%d res=%d", (int)frame.descSets.size(), (int)res);
 		descAlloc.descriptorPool = frame.descPool;  // Need to update this pointer since we have allocated a new one.
 		result = vkAllocateDescriptorSets(vulkan_->GetDevice(), &descAlloc, &desc);
-		_assert_msg_(G3D, result == VK_SUCCESS, "Ran out of descriptor space (frag?) and failed to allocate after recreating a descriptor pool. res=%d", (int)result);
+		_assert_msg_(result == VK_SUCCESS, "Ran out of descriptor space (frag?) and failed to allocate after recreating a descriptor pool. res=%d", (int)result);
 	}
 
 	// Even in release mode, this is bad.
-	_assert_msg_(G3D, result == VK_SUCCESS, "Ran out of descriptor space in pool. sz=%d res=%d", (int)frame.descSets.size(), (int)result);
+	_assert_msg_(result == VK_SUCCESS, "Ran out of descriptor space in pool. sz=%d res=%d", (int)frame.descSets.size(), (int)result);
 
 	// We just don't write to the slots we don't care about, which is fine.
-	VkWriteDescriptorSet writes[7]{};
+	VkWriteDescriptorSet writes[9]{};
 	// Main texture
 	int n = 0;
 	VkDescriptorImageInfo tex[3]{};
 	if (imageView) {
-#ifdef VULKAN_USE_GENERAL_LAYOUT_FOR_COLOR
-		tex[0].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-#else
+		_dbg_assert_(sampler != VK_NULL_HANDLE);
+
 		tex[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-#endif
 		tex[0].imageView = imageView;
 		tex[0].sampler = sampler;
 		writes[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -457,11 +460,7 @@ VkDescriptorSet DrawEngineVulkan::GetOrCreateDescriptorSet(VkImageView imageView
 	}
 
 	if (boundSecondary_) {
-#ifdef VULKAN_USE_GENERAL_LAYOUT_FOR_COLOR
-		tex[1].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-#else
 		tex[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-#endif
 		tex[1].imageView = boundSecondary_;
 		tex[1].sampler = samplerSecondary_;
 		writes[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -475,11 +474,7 @@ VkDescriptorSet DrawEngineVulkan::GetOrCreateDescriptorSet(VkImageView imageView
 	}
 
 	if (boundDepal_) {
-#ifdef VULKAN_USE_GENERAL_LAYOUT_FOR_COLOR
-		tex[2].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-#else
 		tex[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-#endif
 		tex[2].imageView = boundDepal_;
 		tex[2].sampler = samplerSecondary_;  // doesn't matter, we use load
 		writes[n].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -587,10 +582,19 @@ void DrawEngineVulkan::DoFlush() {
 
 	VulkanRenderManager *renderManager = (VulkanRenderManager *)draw_->GetNativeObject(Draw::NativeObject::RENDER_MANAGER);
 	
-	// HACK: These two lines should only execute if we started on a new render pass. Can't tell from in here though...
+	// TODO: Needs to be behind a check for changed render pass, at an appropriate time in this function.
+	// Similar issues as with the lastRenderStepId_ check. Will need a bit of a rethink.
 	lastPipeline_ = nullptr;
-	// Since we have a new cmdbuf, dirty our dynamic state so it gets re-set.
-	// gstate_c.Dirty(DIRTY_VIEWPORTSCISSOR_STATE|DIRTY_DEPTHSTENCIL_STATE|DIRTY_BLEND_STATE);
+	// If have a new render pass, dirty our dynamic state so it gets re-set.
+	// We have to do this again after the last possible place in DoFlush that can cause a renderpass switch
+	// like a shader blend blit or similar. But before we actually set the state!
+	int curRenderStepId = renderManager->GetCurrentStepId();
+	if (lastRenderStepId_ != curRenderStepId) {
+		// Dirty everything that has dynamic state that will need re-recording.
+		gstate_c.Dirty(DIRTY_VIEWPORTSCISSOR_STATE | DIRTY_DEPTHSTENCIL_STATE | DIRTY_BLEND_STATE | DIRTY_TEXTURE_IMAGE | DIRTY_TEXTURE_PARAMS);
+		textureCache_->ForgetLastTexture();
+		lastRenderStepId_ = curRenderStepId;
+	}
 
 	FrameData *frame = &frame_[vulkan_->GetCurFrame()];
 
@@ -646,7 +650,7 @@ void DrawEngineVulkan::DoFlush() {
 			case VertexArrayInfoVulkan::VAI_NEW:
 			{
 				// Haven't seen this one before. We don't actually upload the vertex data yet.
-				ReliableHashType dataHash = ComputeHash();
+				uint64_t dataHash = ComputeHash();
 				vai->hash = dataHash;
 				vai->minihash = ComputeMiniHash();
 				vai->status = VertexArrayInfoVulkan::VAI_HASHING;
@@ -671,7 +675,7 @@ void DrawEngineVulkan::DoFlush() {
 				if (vai->drawsUntilNextFullHash == 0) {
 					// Let's try to skip a full hash if mini would fail.
 					const u32 newMiniHash = ComputeMiniHash();
-					ReliableHashType newHash = vai->hash;
+					uint64_t newHash = vai->hash;
 					if (newMiniHash == vai->minihash) {
 						newHash = ComputeHash();
 					}
@@ -704,7 +708,7 @@ void DrawEngineVulkan::DoFlush() {
 				if (!vai->vb) {
 					// Directly push to the vertex cache.
 					DecodeVertsToPushBuffer(vertexCache_, &vai->vbOffset, &vai->vb);
-					_dbg_assert_msg_(G3D, gstate_c.vertBounds.minV >= gstate_c.vertBounds.maxV, "Should not have checked UVs when caching.");
+					_dbg_assert_msg_(gstate_c.vertBounds.minV >= gstate_c.vertBounds.maxV, "Should not have checked UVs when caching.");
 					vai->numVerts = indexGen.VertexCount();
 					vai->prim = indexGen.Prim();
 					vai->maxIndex = indexGen.MaxIndex();
@@ -814,7 +818,7 @@ void DrawEngineVulkan::DoFlush() {
 			}
 
 			shaderManager_->GetShaders(prim, lastVType_, &vshader, &fshader, true, useHWTessellation_);  // usehwtransform
-			_dbg_assert_msg_(G3D, vshader->UseHWTransform(), "Bad vshader");
+			_dbg_assert_msg_(vshader->UseHWTransform(), "Bad vshader");
 
 			Draw::NativeObject object = framebufferManager_->UseBufferedRendering() ? Draw::NativeObject::FRAMEBUFFER_RENDERPASS : Draw::NativeObject::BACKBUFFER_RENDERPASS;
 			VkRenderPass renderPass = (VkRenderPass)draw_->GetNativeObject(object);
@@ -824,7 +828,18 @@ void DrawEngineVulkan::DoFlush() {
 				return;
 			}
 			BindShaderBlendTex();  // This might cause copies so important to do before BindPipeline.
-			renderManager->BindPipeline(pipeline->pipeline);
+
+			// If have a new render pass, dirty our dynamic state so it gets re-set.
+			// WARNING: We have to do this AFTER the last possible place in DoFlush that can cause a renderpass switch
+			// like a shader blend blit or similar. But before we actually set the state!
+			int curRenderStepId = renderManager->GetCurrentStepId();
+			if (lastRenderStepId_ != curRenderStepId) {
+				// Dirty everything that has dynamic state that will need re-recording.
+				gstate_c.Dirty(DIRTY_VIEWPORTSCISSOR_STATE | DIRTY_DEPTHSTENCIL_STATE | DIRTY_BLEND_STATE);
+				lastRenderStepId_ = curRenderStepId;
+			}
+
+			renderManager->BindPipeline(pipeline->pipeline, (PipelineFlags)pipeline->flags);
 			if (pipeline != lastPipeline_) {
 				if (lastPipeline_ && !(lastPipeline_->UsesBlendConstant() && pipeline->UsesBlendConstant())) {
 					gstate_c.Dirty(DIRTY_BLEND_STATE);
@@ -880,10 +895,7 @@ void DrawEngineVulkan::DoFlush() {
 			prim = GE_PRIM_TRIANGLES;
 		VERBOSE_LOG(G3D, "Flush prim %i SW! %i verts in one go", prim, indexGen.VertexCount());
 
-		int numTrans = 0;
-		bool drawIndexed = false;
 		u16 *inds = decIndex;
-		TransformedVertex *drawBuffer = nullptr;
 		SoftwareTransformResult result{};
 		SoftwareTransformParams params{};
 		params.decoded = decoded;
@@ -906,10 +918,15 @@ void DrawEngineVulkan::DoFlush() {
 		}
 
 		int maxIndex = indexGen.MaxIndex();
-		SoftwareTransform(
-			prim, indexGen.VertexCount(),
-			dec_->VertexType(), inds, GE_VTYPE_IDX_16BIT, dec_->GetDecVtxFmt(),
-			maxIndex, drawBuffer, numTrans, drawIndexed, &params, &result);
+		SoftwareTransform swTransform(params);
+		swTransform.Decode(prim, dec_->VertexType(), dec_->GetDecVtxFmt(), maxIndex, &result);
+		if (result.action == SW_NOT_READY) {
+			swTransform.DetectOffsetTexture(maxIndex);
+			swTransform.BuildDrawingParams(prim, indexGen.VertexCount(), dec_->VertexType(), inds, maxIndex, &result);
+		}
+
+		if (result.setSafeSize)
+			framebufferManager_->SetSafeSize(result.safeWidth, result.safeHeight);
 
 		// Only here, where we know whether to clear or to draw primitives, should we actually set the current framebuffer! Because that gives use the opportunity
 		// to use a "pre-clear" render pass, for high efficiency on tilers.
@@ -924,7 +941,7 @@ void DrawEngineVulkan::DoFlush() {
 			}
 			if (!lastPipeline_ || gstate_c.IsDirty(DIRTY_BLEND_STATE | DIRTY_VIEWPORTSCISSOR_STATE | DIRTY_RASTER_STATE | DIRTY_DEPTHSTENCIL_STATE | DIRTY_VERTEXSHADER_STATE | DIRTY_FRAGMENTSHADER_STATE) || prim != lastPrim_) {
 				shaderManager_->GetShaders(prim, lastVType_, &vshader, &fshader, false, false);  // usehwtransform
-				_dbg_assert_msg_(G3D, !vshader->UseHWTransform(), "Bad vshader");
+				_dbg_assert_msg_(!vshader->UseHWTransform(), "Bad vshader");
 				if (prim != lastPrim_ || gstate_c.IsDirty(DIRTY_BLEND_STATE | DIRTY_VIEWPORTSCISSOR_STATE | DIRTY_RASTER_STATE | DIRTY_DEPTHSTENCIL_STATE)) {
 					ConvertStateToVulkanKey(*framebufferManager_, shaderManager_, prim, pipelineKey_, dynState_);
 				}
@@ -936,7 +953,18 @@ void DrawEngineVulkan::DoFlush() {
 					return;
 				}
 				BindShaderBlendTex();  // This might cause copies so super important to do before BindPipeline.
-				renderManager->BindPipeline(pipeline->pipeline);
+
+				// If have a new render pass, dirty our dynamic state so it gets re-set.
+				// WARNING: We have to do this AFTER the last possible place in DoFlush that can cause a renderpass switch
+				// like a shader blend blit or similar. But before we actually set the state!
+				int curRenderStepId = renderManager->GetCurrentStepId();
+				if (lastRenderStepId_ != curRenderStepId) {
+					// Dirty everything that has dynamic state that will need re-recording.
+					gstate_c.Dirty(DIRTY_VIEWPORTSCISSOR_STATE | DIRTY_DEPTHSTENCIL_STATE | DIRTY_BLEND_STATE);
+					lastRenderStepId_ = curRenderStepId;
+				}
+
+				renderManager->BindPipeline(pipeline->pipeline, (PipelineFlags)pipeline->flags);
 				if (pipeline != lastPipeline_) {
 					if (lastPipeline_ && !lastPipeline_->UsesBlendConstant() && pipeline->UsesBlendConstant()) {
 						gstate_c.Dirty(DIRTY_BLEND_STATE);
@@ -965,17 +993,17 @@ void DrawEngineVulkan::DoFlush() {
 
 			PROFILE_THIS_SCOPE("renderman_q");
 
-			if (drawIndexed) {
+			if (result.drawIndexed) {
 				VkBuffer vbuf, ibuf;
-				vbOffset = (uint32_t)frame->pushVertex->Push(drawBuffer, maxIndex * sizeof(TransformedVertex), &vbuf);
-				ibOffset = (uint32_t)frame->pushIndex->Push(inds, sizeof(short) * numTrans, &ibuf);
+				vbOffset = (uint32_t)frame->pushVertex->Push(result.drawBuffer, maxIndex * sizeof(TransformedVertex), &vbuf);
+				ibOffset = (uint32_t)frame->pushIndex->Push(inds, sizeof(short) * result.drawNumTrans, &ibuf);
 				VkDeviceSize offsets[1] = { vbOffset };
-				renderManager->DrawIndexed(pipelineLayout_, ds, ARRAY_SIZE(dynamicUBOOffsets), dynamicUBOOffsets, vbuf, vbOffset, ibuf, ibOffset, numTrans, 1, VK_INDEX_TYPE_UINT16);
+				renderManager->DrawIndexed(pipelineLayout_, ds, ARRAY_SIZE(dynamicUBOOffsets), dynamicUBOOffsets, vbuf, vbOffset, ibuf, ibOffset, result.drawNumTrans, 1, VK_INDEX_TYPE_UINT16);
 			} else {
 				VkBuffer vbuf;
-				vbOffset = (uint32_t)frame->pushVertex->Push(drawBuffer, numTrans * sizeof(TransformedVertex), &vbuf);
+				vbOffset = (uint32_t)frame->pushVertex->Push(result.drawBuffer, result.drawNumTrans * sizeof(TransformedVertex), &vbuf);
 				VkDeviceSize offsets[1] = { vbOffset };
-				renderManager->Draw(pipelineLayout_, ds, ARRAY_SIZE(dynamicUBOOffsets), dynamicUBOOffsets, vbuf, vbOffset, numTrans);
+				renderManager->Draw(pipelineLayout_, ds, ARRAY_SIZE(dynamicUBOOffsets), dynamicUBOOffsets, vbuf, vbOffset, result.drawNumTrans);
 			}
 		} else if (result.action == SW_CLEAR) {
 			// Note: we won't get here if the clear is alpha but not color, or color but not alpha.
@@ -984,13 +1012,11 @@ void DrawEngineVulkan::DoFlush() {
 			// If non-buffered though, it'll just do a plain clear.
 			framebufferManager_->NotifyClear(gstate.isClearModeColorMask(), gstate.isClearModeAlphaMask(), gstate.isClearModeDepthMask(), result.color, result.depth);
 
-			int scissorX1 = gstate.getScissorX1();
-			int scissorY1 = gstate.getScissorY1();
-			int scissorX2 = gstate.getScissorX2() + 1;
-			int scissorY2 = gstate.getScissorY2() + 1;
-			framebufferManager_->SetSafeSize(scissorX2, scissorY2);
-
 			if (gstate_c.Supports(GPU_USE_CLEAR_RAM_HACK) && gstate.isClearModeColorMask() && (gstate.isClearModeAlphaMask() || gstate.FrameBufFormat() == GE_FORMAT_565)) {
+				int scissorX1 = gstate.getScissorX1();
+				int scissorY1 = gstate.getScissorY1();
+				int scissorX2 = gstate.getScissorX2() + 1;
+				int scissorY2 = gstate.getScissorY2() + 1;
 				framebufferManager_->ApplyClearToMemory(scissorX1, scissorY1, scissorX2, scissorY2, result.color);
 			}
 		}

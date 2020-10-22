@@ -30,12 +30,16 @@
 #include "SDL/SDLJoystick.h"
 #include "SDL_audio.h"
 #endif
+
+#include "Common/System/NativeApp.h"
+#include "Common/System/System.h"
+#include "Common/GPU/OpenGL/GLFeatures.h"
+#include "Common/Math/math_util.h"
+
 #include "QtMain.h"
-#include "gfx_es2/gpu_features.h"
-#include "i18n/i18n.h"
-#include "math/math_util.h"
-#include "thread/threadutil.h"
-#include "util/text/utf8.h"
+#include "Common/Data/Text/I18n.h"
+#include "Common/Thread/ThreadUtil.h"
+#include "Common/Data/Encoding/Utf8.h"
 #include "Core/Config.h"
 #include "Core/ConfigValues.h"
 #include "Core/HW/Camera.h"
@@ -49,6 +53,8 @@ static int browseFolderEvent = -1;
 QTCamera *qtcamera = nullptr;
 
 #ifdef SDL
+SDL_AudioSpec g_retFmt;
+
 static SDL_AudioDeviceID audioDev = 0;
 
 extern void mixaudio(void *userdata, Uint8 *stream, int len) {
@@ -56,36 +62,36 @@ extern void mixaudio(void *userdata, Uint8 *stream, int len) {
 }
 
 static void InitSDLAudioDevice() {
-	SDL_AudioSpec fmt, ret_fmt;
+	SDL_AudioSpec fmt;
 	memset(&fmt, 0, sizeof(fmt));
 	fmt.freq = 44100;
 	fmt.format = AUDIO_S16;
 	fmt.channels = 2;
-	fmt.samples = 2048;
+	fmt.samples = 1024;
 	fmt.callback = &mixaudio;
 	fmt.userdata = nullptr;
 
 	audioDev = 0;
 	if (!g_Config.sAudioDevice.empty()) {
-		audioDev = SDL_OpenAudioDevice(g_Config.sAudioDevice.c_str(), 0, &fmt, &ret_fmt, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+		audioDev = SDL_OpenAudioDevice(g_Config.sAudioDevice.c_str(), 0, &fmt, &g_retFmt, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
 		if (audioDev <= 0) {
-			WLOG("Failed to open preferred audio device %s", g_Config.sAudioDevice.c_str());
+			WARN_LOG(AUDIO, "Failed to open preferred audio device %s", g_Config.sAudioDevice.c_str());
 		}
 	}
 	if (audioDev <= 0) {
-		audioDev = SDL_OpenAudioDevice(nullptr, 0, &fmt, &ret_fmt, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+		audioDev = SDL_OpenAudioDevice(nullptr, 0, &fmt, &g_retFmt, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
 	}
 	if (audioDev <= 0) {
-		ELOG("Failed to open audio: %s", SDL_GetError());
+		ERROR_LOG(AUDIO, "Failed to open audio: %s", SDL_GetError());
 	} else {
-		if (ret_fmt.samples != fmt.samples) // Notify, but still use it
-			ELOG("Output audio samples: %d (requested: %d)", ret_fmt.samples, fmt.samples);
-		if (ret_fmt.freq != fmt.freq || ret_fmt.format != fmt.format || ret_fmt.channels != fmt.channels) {
-			ELOG("Sound buffer format does not match requested format.");
-			ELOG("Output audio freq: %d (requested: %d)", ret_fmt.freq, fmt.freq);
-			ELOG("Output audio format: %d (requested: %d)", ret_fmt.format, fmt.format);
-			ELOG("Output audio channels: %d (requested: %d)", ret_fmt.channels, fmt.channels);
-			ELOG("Provided output format does not match requirement, turning audio off");
+		if (g_retFmt.samples != fmt.samples) // Notify, but still use it
+			ERROR_LOG(AUDIO, "Output audio samples: %d (requested: %d)", g_retFmt.samples, fmt.samples);
+		if (g_retFmt.format != fmt.format || g_retFmt.channels != fmt.channels) {
+			ERROR_LOG(AUDIO, "Sound buffer format does not match requested format.");
+			ERROR_LOG(AUDIO, "Output audio freq: %d (requested: %d)", g_retFmt.freq, fmt.freq);
+			ERROR_LOG(AUDIO, "Output audio format: %d (requested: %d)", g_retFmt.format, fmt.format);
+			ERROR_LOG(AUDIO, "Output audio channels: %d (requested: %d)", g_retFmt.channels, fmt.channels);
+			ERROR_LOG(AUDIO, "Provided output format does not match requirement, turning audio off");
 			SDL_CloseAudioDevice(audioDev);
 		}
 		SDL_PauseAudioDevice(audioDev, 0);
@@ -145,8 +151,12 @@ std::string System_GetProperty(SystemProperty prop) {
 
 int System_GetPropertyInt(SystemProperty prop) {
 	switch (prop) {
+#if defined(SDL)
 	case SYSPROP_AUDIO_SAMPLE_RATE:
-		return 44100;
+		return g_retFmt.freq;
+	case SYSPROP_AUDIO_FRAMES_PER_BUFFER:
+		return g_retFmt.samples;
+#endif
 	case SYSPROP_DEVICE_TYPE:
 #if defined(__ANDROID__)
 		return DEVICE_TYPE_MOBILE;
@@ -337,9 +347,9 @@ MainUI::MainUI(QWidget *parent)
 }
 
 MainUI::~MainUI() {
-	ILOG("MainUI::Destructor");
+	INFO_LOG(SYSTEM, "MainUI::Destructor");
 	if (emuThreadState != (int)EmuThreadState::DISABLED) {
-		ILOG("EmuThreadStop");
+		INFO_LOG(SYSTEM, "EmuThreadStop");
 		EmuThreadStop();
 		while (graphicsContext->ThreadFrame()) {
 			// Need to keep eating frames to allow the EmuThread to exit correctly.
@@ -519,7 +529,7 @@ bool MainUI::event(QEvent *e) {
 
 void MainUI::initializeGL() {
 	if (g_Config.iGPUBackend != (int)GPUBackend::OPENGL) {
-		ILOG("Only GL supported under Qt - switching.");
+		INFO_LOG(SYSTEM, "Only GL supported under Qt - switching.");
 		g_Config.iGPUBackend = (int)GPUBackend::OPENGL;
 	}
 
@@ -539,12 +549,12 @@ void MainUI::initializeGL() {
 #endif
 	if (g_Config.iGPUBackend == (int)GPUBackend::OPENGL) {
 		// OpenGL uses a background thread to do the main processing and only renders on the gl thread.
-		ILOG("Initializing GL graphics context");
+		INFO_LOG(SYSTEM, "Initializing GL graphics context");
 		graphicsContext = new QtGLGraphicsContext();
-		ILOG("Using thread, starting emu thread");
+		INFO_LOG(SYSTEM, "Using thread, starting emu thread");
 		EmuThreadStart();
 	} else {
-		ILOG("Not using thread, backend=%d", (int)g_Config.iGPUBackend);
+		INFO_LOG(SYSTEM, "Not using thread, backend=%d", (int)g_Config.iGPUBackend);
 	}
 	graphicsContext->ThreadStart();
 }
@@ -708,7 +718,7 @@ int main(int argc, char *argv[])
 	g_Config.iGPUBackend = (int)GPUBackend::OPENGL;
 
 	int ret = mainInternal(a);
-	ILOG("Left mainInternal here.");
+	INFO_LOG(SYSTEM, "Left mainInternal here.");
 
 #ifdef SDL
 	if (audioDev > 0) {

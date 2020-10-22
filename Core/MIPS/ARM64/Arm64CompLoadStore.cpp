@@ -180,7 +180,7 @@ namespace MIPSComp {
 			return;
 		}
 
-		_dbg_assert_msg_(JIT, !gpr.IsImm(rs), "Invalid immediate address %08x?  CPU bug?", iaddr);
+		_dbg_assert_msg_(!gpr.IsImm(rs), "Invalid immediate address %08x?  CPU bug?", iaddr);
 		if (load) {
 			gpr.MapDirtyIn(rt, rs, false);
 		} else {
@@ -380,7 +380,7 @@ namespace MIPSComp {
 				// This gets hit in a few games, as a result of never-taken delay slots (some branch types
 				// conditionally execute the delay slot instructions). Ignore in those cases.
 				if (!js.inDelaySlot) {
-					_dbg_assert_msg_(JIT, !gpr.IsImm(rs), "Invalid immediate address %08x?  CPU bug?", iaddr);
+					_dbg_assert_msg_(!gpr.IsImm(rs), "Invalid immediate address %08x?  CPU bug?", iaddr);
 				}
 
 				// If we already have a targetReg, we optimized an imm, and rs is already mapped.
@@ -432,37 +432,19 @@ namespace MIPSComp {
 	}
 
 	void Arm64Jit::Comp_Cache(MIPSOpcode op) {
-		// int imm = (s16)(op & 0xFFFF);
-		// int rs = _RS;
-		// int addr = R(rs) + imm;
+		CONDITIONAL_DISABLE(LSU);
+
 		int func = (op >> 16) & 0x1F;
 
-		// It appears that a cache line is 0x40 (64) bytes, loops in games
-		// issue the cache instruction at that interval.
-
-		// These codes might be PSP-specific, they don't match regular MIPS cache codes very well
+		// See Int_Cache for the definitions.
 		switch (func) {
-			// Icache
-		case 8:
-			// Invalidate the instruction cache at this address
-			DISABLE;
-			break;
-			// Dcache
-		case 24:
-			// "Create Dirty Exclusive" - for avoiding a cacheline fill before writing to it.
-			// Will cause garbage on the real machine so we just ignore it, the app will overwrite the cacheline.
-			break;
-		case 25:  // Hit Invalidate - zaps the line if present in cache. Should not writeback???? scary.
-			// No need to do anything.
-			break;
-		case 27:  // D-cube. Hit Writeback Invalidate.  Tony Hawk Underground 2
-			break;
-		case 30:  // GTA LCS, a lot. Fill (prefetch).   Tony Hawk Underground 2
-			break;
-
+		case 24: break;
+		case 25: break;
+		case 27: break;
+		case 30: break;
 		default:
+			// Fall back to the interpreter.
 			DISABLE;
-			break;
 		}
 	}
 }

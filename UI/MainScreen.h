@@ -19,10 +19,10 @@
 
 #include <functional>
 
-#include "file/path.h"
-#include "ui/ui_screen.h"
-#include "ui/viewgroup.h"
+#include "Common/UI/UIScreen.h"
+#include "Common/UI/ViewGroup.h"
 #include "UI/MiscScreens.h"
+#include "Common/File/PathBrowser.h"
 
 enum GameBrowserFlags {
 	FLAG_HOMEBREWSTOREBUTTON = 1
@@ -36,14 +36,7 @@ enum class BrowseFlags {
 	HOMEBREW_STORE = 8,
 	STANDARD = 1 | 2 | 4,
 };
-
-static inline BrowseFlags operator |(const BrowseFlags &lhs, const BrowseFlags &rhs) {
-	return BrowseFlags((int)lhs | (int)rhs);
-}
-
-static inline bool operator &(const BrowseFlags &lhs, const BrowseFlags &rhs) {
-	return ((int)lhs & (int)rhs) != 0;
-}
+ENUM_CLASS_BITOPS(BrowseFlags);
 
 class GameBrowser : public UI::LinearLayout {
 public:
@@ -52,8 +45,6 @@ public:
 	UI::Event OnChoice;
 	UI::Event OnHoldChoice;
 	UI::Event OnHighlight;
-
-	UI::Choice *HomebrewStoreButton() { return homebrewStoreButton_; }
 
 	void FocusGame(const std::string &gamePath);
 	void SetPath(const std::string &path);
@@ -81,14 +72,14 @@ private:
 	UI::EventReturn PinToggleClick(UI::EventParams &e);
 	UI::EventReturn GridSettingsClick(UI::EventParams &e);
 	UI::EventReturn OnRecentClear(UI::EventParams &e);
+	UI::EventReturn OnHomebrewStore(UI::EventParams &e);
 
 	UI::ViewGroup *gameList_ = nullptr;
 	PathBrowser path_;
-	bool *gridStyle_;
+	bool *gridStyle_ = nullptr;
 	BrowseFlags browseFlags_;
 	std::string lastText_;
 	std::string lastLink_;
-	UI::Choice *homebrewStoreButton_ = nullptr;
 	std::string focusGamePath_;
 	bool listingPending_ = false;
 	float lastScale_ = 1.0f;
@@ -131,21 +122,20 @@ protected:
 	UI::EventReturn OnExit(UI::EventParams &e);
 	UI::EventReturn OnDownloadUpgrade(UI::EventParams &e);
 	UI::EventReturn OnDismissUpgrade(UI::EventParams &e);
-	UI::EventReturn OnHomebrewStore(UI::EventParams &e);
 	UI::EventReturn OnAllowStorage(UI::EventParams &e);
 
-	UI::LinearLayout *upgradeBar_;
-	UI::TabHolder *tabHolder_;
+	UI::LinearLayout *upgradeBar_ = nullptr;
+	UI::TabHolder *tabHolder_ = nullptr;
 
 	std::string restoreFocusGamePath_;
 	std::vector<GameBrowser *> gameBrowsers_;
 
 	std::string highlightedGamePath_;
 	std::string prevHighlightedGamePath_;
-	float highlightProgress_;
-	float prevHighlightProgress_;
-	bool backFromStore_;
-	bool lockBackgroundAudio_;
+	float highlightProgress_ = 0.0f;
+	float prevHighlightProgress_ = 0.0f;
+	bool backFromStore_ = false;
+	bool lockBackgroundAudio_ = false;
 	bool lastVertical_;
 	bool confirmedTemporary_ = false;
 

@@ -7,10 +7,12 @@
 #include <QFileDialog>
 #include <QMessageBox>
 
-#include "base/display.h"
-#include "base/NativeApp.h"
+#include "Common/System/Display.h"
+#include "Common/System/NativeApp.h"
+#include "Common/System/System.h"
 #include "Core/MIPS/MIPSDebugInterface.h"
 #include "Core/Debugger/SymbolMap.h"
+#include "Core/HLE/sceUmd.h"
 #include "Core/SaveState.h"
 #include "Core/System.h"
 #include "GPU/GPUInterface.h"
@@ -22,13 +24,6 @@ MainWindow::MainWindow(QWidget *parent, bool fullscreen) :
 	nextState(CORE_POWERDOWN),
 	lastUIState(UISTATE_MENU)
 {
-	QDesktopWidget *desktop = QApplication::desktop();
-	int screenNum = QProcessEnvironment::systemEnvironment().value("SDL_VIDEO_FULLSCREEN_HEAD", "0").toInt();
-
-	// Move window to the center of selected screen
-	QRect rect = desktop->screenGeometry(screenNum);
-	move((rect.width() - frameGeometry().width()) / 4, (rect.height() - frameGeometry().height()) / 4);
-
 	setWindowIcon(QIcon(qApp->applicationDirPath() + "/assets/icon_regular_72.png"));
 
 	SetGameTitle("");
@@ -62,6 +57,9 @@ void MainWindow::newFrame()
 		updateMenus();
 	}
 
+	if (g_Config.bFullScreen != isFullScreen())
+		SetFullScreen(g_Config.bFullScreen);
+
 	std::unique_lock<std::mutex> lock(msgMutex_);
 	while (!msgQueue_.empty()) {
 		MainWindowMsg msg = msgQueue_.front();
@@ -78,21 +76,24 @@ void MainWindow::newFrame()
 	}
 }
 
+void MainWindow::updateMenuGroupInt(QActionGroup *group, int value) {
+	foreach (QAction *action, group->actions()) {
+		action->setChecked(action->data().toInt() == value);
+	}
+}
+
 void MainWindow::updateMenus()
 {
-	foreach(QAction * action, saveStateGroup->actions()) {
-		if (g_Config.iCurrentStateSlot == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, displayRotationGroup->actions()) {
-		if (g_Config.iInternalScreenRotation == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
+	updateMenuGroupInt(saveStateGroup, g_Config.iCurrentStateSlot);
+	updateMenuGroupInt(displayRotationGroup, g_Config.iInternalScreenRotation);
+	updateMenuGroupInt(renderingResolutionGroup, g_Config.iInternalResolution);
+	updateMenuGroupInt(renderingModeGroup, g_Config.iRenderingMode);
+	updateMenuGroupInt(frameSkippingGroup, g_Config.iFrameSkip);
+	updateMenuGroupInt(frameSkippingTypeGroup, g_Config.iFrameSkipType);
+	updateMenuGroupInt(textureFilteringGroup, g_Config.iTexFiltering);
+	updateMenuGroupInt(screenScalingFilterGroup, g_Config.iBufFilter);
+	updateMenuGroupInt(textureScalingLevelGroup, g_Config.iTexScalingLevel);
+	updateMenuGroupInt(textureScalingTypeGroup, g_Config.iTexScalingType);
 
 	foreach(QAction * action, windowGroup->actions()) {
 		int width = (g_Config.IsPortrait() ? 272 : 480) * action->data().toInt();
@@ -102,70 +103,11 @@ void MainWindow::updateMenus()
 			break;
 		}
 	}
-
-	foreach(QAction * action, renderingResolutionGroup->actions()) {
-		if (g_Config.iInternalResolution == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, renderingModeGroup->actions()) {
-		if (g_Config.iRenderingMode == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, frameSkippingGroup->actions()) {
-		if (g_Config.iFrameSkip == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, frameSkippingTypeGroup->actions()) {
-		if (g_Config.iFrameSkipType == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, textureFilteringGroup->actions()) {
-		if (g_Config.iTexFiltering == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, screenScalingFilterGroup->actions()) {
-		if (g_Config.iBufFilter == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, textureScalingLevelGroup->actions()) {
-		if (g_Config.iTexScalingLevel == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
-
-	foreach(QAction * action, textureScalingTypeGroup->actions()) {
-		if (g_Config.iTexScalingType == action->data().toInt()) {
-			action->setChecked(true);
-			break;
-		}
-	}
 	emit updateMenu();
 }
 
 void MainWindow::bootDone()
 {
-	if (g_Config.bFullScreen != isFullScreen())
-		SetFullScreen(g_Config.bFullScreen);
-
 	if (nextState == CORE_RUNNING)
 		runAct();
 	updateMenus();
@@ -194,7 +136,7 @@ void MainWindow::closeAct()
 void MainWindow::openmsAct()
 {
 	QString confighome = getenv("XDG_CONFIG_HOME");
-	QString memorystick = confighome + "/ppsspp/PSP";
+	QString memorystick = confighome + "/ppsspp";
 	QDesktopServices::openUrl(QUrl(memorystick));
 }
 
@@ -234,7 +176,7 @@ void MainWindow::lstateAct()
 	if (dialog.exec())
 	{
 		QStringList fileNames = dialog.selectedFiles();
-		SaveState::Load(fileNames[0].toStdString(), SaveStateActionFinished, this);
+		SaveState::Load(fileNames[0].toStdString(), -1, SaveStateActionFinished, this);
 	}
 }
 
@@ -249,7 +191,7 @@ void MainWindow::sstateAct()
 	if (dialog.exec())
 	{
 		QStringList fileNames = dialog.selectedFiles();
-		SaveState::Save(fileNames[0].toStdString(), SaveStateActionFinished, this);
+		SaveState::Save(fileNames[0].toStdString(), -1, SaveStateActionFinished, this);
 	}
 }
 
@@ -300,6 +242,17 @@ void MainWindow::resetAct()
 	updateMenus();
 
 	NativeMessageReceived("reset", "");
+}
+
+void MainWindow::switchUMDAct()
+{
+	QString filename = QFileDialog::getOpenFileName(NULL, "Switch UMD", g_Config.currentDirectory.c_str(), "PSP ROMs (*.pbp *.elf *.iso *.cso *.prx)");
+	if (QFile::exists(filename))
+	{
+		QFileInfo info(filename);
+		g_Config.currentDirectory = info.absolutePath().toStdString();
+		__UmdReplace(filename.toStdString().c_str());
+	}
 }
 
 void MainWindow::breakonloadAct()
@@ -429,6 +382,13 @@ void MainWindow::SetFullScreen(bool fullscreen) {
 
 		if (GetUIState() == UISTATE_INGAME && QApplication::overrideCursor())
 			QApplication::restoreOverrideCursor();
+
+		QDesktopWidget *desktop = QApplication::desktop();
+		int screenNum = QProcessEnvironment::systemEnvironment().value("SDL_VIDEO_FULLSCREEN_HEAD", "0").toInt();
+
+		// Move window to the center of selected screen
+		QRect rect = desktop->screenGeometry(screenNum);
+		move((rect.width() - frameGeometry().width()) / 4, (rect.height() - frameGeometry().height()) / 4);
 	}
 }
 
@@ -587,6 +547,8 @@ void MainWindow::createMenus()
 		->addEnableState(UISTATE_INGAME);
 	emuMenu->add(new MenuAction(this, SLOT(resetAct()),       QT_TR_NOOP("R&eset"), Qt::CTRL + Qt::Key_B))
 		->addEnableState(UISTATE_INGAME);
+	emuMenu->add(new MenuAction(this, SLOT(switchUMDAct()),       QT_TR_NOOP("Switch UMD"), Qt::CTRL + Qt::Key_U))
+		->addEnableState(UISTATE_INGAME);
 	MenuTree* displayRotationMenu = new MenuTree(this, emuMenu, QT_TR_NOOP("Display rotation"));
 	displayRotationGroup = new MenuActionGroup(this, displayRotationMenu, SLOT(displayRotationGroup_triggered(QAction *)),
 		QStringList() << "Landscape" << "Portrait" << "Landscape reversed" << "Portrait reversed",
@@ -641,7 +603,7 @@ void MainWindow::createMenus()
 	MenuTree* windowMenu = new MenuTree(this, gameSettingsMenu, QT_TR_NOOP("&Window size"));
 	windowGroup = new MenuActionGroup(this, windowMenu, SLOT(windowGroup_triggered(QAction *)),
 		QStringList() << "&1x" << "&2x" << "&3x" << "&4x" << "&5x" << "&6x" << "&7x" << "&8x" << "&9x" << "1&0x",
-		QList<int>() << 1 << 2 << 3 << 4 << 5 << 6 << 7 << 8 << 9 << 10);
+		QList<int>() << 0 << 1 << 2 << 3 << 4 << 5 << 6 << 7 << 8 << 9);
 
 	MenuTree* renderingModeMenu = new MenuTree(this, gameSettingsMenu, QT_TR_NOOP("Rendering m&ode"));
 	renderingModeGroup = new MenuActionGroup(this, renderingModeMenu, SLOT(renderingModeGroup_triggered(QAction *)),

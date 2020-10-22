@@ -15,11 +15,12 @@
 // Official git repository and contact information can be found at
 // https://github.com/hrydgard/ppsspp and http://www.ppsspp.org/.
 
-#include "base/logging.h"
-#include "profiler/profiler.h"
-#include "i18n/i18n.h"
+#include "Common/Profiler/Profiler.h"
+#include "Common/Data/Text/I18n.h"
 
-#include "Common/ChunkFile.h"
+#include "Common/Log.h"
+#include "Common/Serialize/Serializer.h"
+#include "Common/File/FileUtil.h"
 #include "Common/GraphicsContext.h"
 
 #include "Core/Config.h"
@@ -34,7 +35,7 @@
 #include "GPU/GPUState.h"
 #include "GPU/ge_constants.h"
 #include "GPU/GeDisasm.h"
-#include "GPU/Common/FramebufferCommon.h"
+#include "GPU/Common/FramebufferManagerCommon.h"
 #include "GPU/Debugger/Debugger.h"
 #include "GPU/GLES/ShaderManagerGLES.h"
 #include "GPU/GLES/GPU_GLES.h"
@@ -71,10 +72,10 @@ GPU_GLES::GPU_GLES(GraphicsContext *gfxCtx, Draw::DrawContext *draw)
 	drawEngine_.SetTextureCache(textureCacheGL_);
 	drawEngine_.SetFramebufferManager(framebufferManagerGL_);
 	drawEngine_.SetFragmentTestCache(&fragmentTestCache_);
-	framebufferManagerGL_->Init();
 	framebufferManagerGL_->SetTextureCache(textureCacheGL_);
 	framebufferManagerGL_->SetShaderManager(shaderManagerGL_);
 	framebufferManagerGL_->SetDrawEngine(&drawEngine_);
+	framebufferManagerGL_->Init();
 	depalShaderCache_.Init();
 	textureCacheGL_->SetFramebufferManager(framebufferManagerGL_);
 	textureCacheGL_->SetDepalShaderCache(&depalShaderCache_);
@@ -181,14 +182,8 @@ void GPU_GLES::CheckGPUFeatures() {
 		}
 	}
 	
-	if (gl_extensions.ARB_framebuffer_object || gl_extensions.EXT_framebuffer_object || gl_extensions.IsGLES) {
-		features |= GPU_SUPPORTS_FBO;
-	}
-	if (gl_extensions.ARB_framebuffer_object || gl_extensions.GLES3) {
-		features |= GPU_SUPPORTS_ARB_FRAMEBUFFER_BLIT;
-	}
-	if (gl_extensions.NV_framebuffer_blit) {
-		features |= GPU_SUPPORTS_NV_FRAMEBUFFER_BLIT;
+	if (gl_extensions.ARB_framebuffer_object || gl_extensions.NV_framebuffer_blit || gl_extensions.GLES3) {
+		features |= GPU_SUPPORTS_FRAMEBUFFER_BLIT | GPU_SUPPORTS_FRAMEBUFFER_BLIT_TO_DEPTH;
 	}
 	if (gl_extensions.ARB_vertex_array_object && gl_extensions.IsCoreContext) {
 		features |= GPU_SUPPORTS_VAO;
@@ -219,7 +214,7 @@ void GPU_GLES::CheckGPUFeatures() {
 		features |= GPU_SUPPORTS_BLEND_MINMAX;
 
 	if (gl_extensions.OES_copy_image || gl_extensions.NV_copy_image || gl_extensions.EXT_copy_image || gl_extensions.ARB_copy_image)
-		features |= GPU_SUPPORTS_ANY_COPY_IMAGE;
+		features |= GPU_SUPPORTS_COPY_IMAGE;
 
 	if (!gl_extensions.IsGLES)
 		features |= GPU_SUPPORTS_LOGIC_OP;
@@ -309,7 +304,7 @@ void GPU_GLES::BuildReportingInfo() {
 }
 
 void GPU_GLES::DeviceLost() {
-	ILOG("GPU_GLES: DeviceLost");
+	INFO_LOG(G3D, "GPU_GLES: DeviceLost");
 
 	// Simply drop all caches and textures.
 	// FBOs appear to survive? Or no?
@@ -327,7 +322,7 @@ void GPU_GLES::DeviceLost() {
 
 void GPU_GLES::DeviceRestore() {
 	draw_ = (Draw::DrawContext *)PSP_CoreParameter().graphicsContext->GetDrawContext();
-	ILOG("GPU_GLES: DeviceRestore");
+	INFO_LOG(G3D, "GPU_GLES: DeviceRestore");
 
 	UpdateCmdInfo();
 	UpdateVsyncInterval(true);
@@ -342,9 +337,7 @@ void GPU_GLES::DeviceRestore() {
 
 void GPU_GLES::Reinitialize() {
 	GPUCommon::Reinitialize();
-	textureCacheGL_->Clear(true);
 	depalShaderCache_.Clear();
-	framebufferManagerGL_->DestroyAllFBOs();
 }
 
 void GPU_GLES::InitClear() {
@@ -375,7 +368,6 @@ void GPU_GLES::ReapplyGfxState() {
 
 void GPU_GLES::BeginFrame() {
 	textureCacheGL_->StartFrame();
-	drawEngine_.DecimateTrackedVertexArrays();
 	depalShaderCache_.Decimate();
 	fragmentTestCache_.Decimate();
 
@@ -401,7 +393,7 @@ void GPU_GLES::SetDisplayFramebuffer(u32 framebuf, u32 stride, GEBufferFormat fo
 
 void GPU_GLES::CopyDisplayToOutput(bool reallyDirty) {
 	// Flush anything left over.
-	framebufferManagerGL_->RebindFramebuffer();
+	framebufferManagerGL_->RebindFramebuffer("RebindFramebuffer - CopyDisplayToOutput");
 	drawEngine_.Flush();
 
 	shaderManagerGL_->DirtyLastShader();
@@ -453,41 +445,17 @@ void GPU_GLES::ExecuteOp(u32 op, u32 diff) {
 }
 
 void GPU_GLES::GetStats(char *buffer, size_t bufsize) {
-	float vertexAverageCycles = gpuStats.numVertsSubmitted > 0 ? (float)gpuStats.vertexGPUCycles / (float)gpuStats.numVertsSubmitted : 0.0f;
-	snprintf(buffer, bufsize - 1,
-		"DL processing time: %0.2f ms\n"
-		"Draw calls: %i, flushes %i, clears %i\n"
-		"Cached Draw calls: %i\n"
-		"Num Tracked Vertex Arrays: %i\n"
-		"GPU cycles executed: %d (%f per vertex)\n"
-		"Commands per call level: %i %i %i %i\n"
-		"Vertices submitted: %i\n"
-		"Cached, Uncached Vertices Drawn: %i, %i\n"
-		"FBOs active: %i\n"
-		"Textures active: %i, decoded: %i  invalidated: %i\n"
-		"Readbacks: %d, uploads: %d\n"
-		"Vertex, Fragment, Programs loaded: %i, %i, %i\n",
-		gpuStats.msProcessingDisplayLists * 1000.0f,
-		gpuStats.numDrawCalls,
-		gpuStats.numFlushes,
-		gpuStats.numClears,
-		gpuStats.numCachedDrawCalls,
-		gpuStats.numTrackedVertexArrays,
-		gpuStats.vertexGPUCycles + gpuStats.otherGPUCycles,
-		vertexAverageCycles,
-		gpuStats.gpuCommandsAtCallLevel[0], gpuStats.gpuCommandsAtCallLevel[1], gpuStats.gpuCommandsAtCallLevel[2], gpuStats.gpuCommandsAtCallLevel[3],
-		gpuStats.numVertsSubmitted,
-		gpuStats.numCachedVertsDrawn,
-		gpuStats.numUncachedVertsDrawn,
-		(int)framebufferManagerGL_->NumVFBs(),
-		(int)textureCacheGL_->NumLoadedTextures(),
-		gpuStats.numTexturesDecoded,
-		gpuStats.numTextureInvalidations,
-		gpuStats.numReadbacks,
-		gpuStats.numUploads,
+	size_t offset = FormatGPUStatsCommon(buffer, bufsize);
+	buffer += offset;
+	bufsize -= offset;
+	if ((int)bufsize < 0)
+		return;
+	snprintf(buffer, bufsize,
+		"Vertex, Fragment, Programs loaded: %d, %d, %d\n",
 		shaderManagerGL_->GetNumVertexShaders(),
 		shaderManagerGL_->GetNumFragmentShaders(),
-		shaderManagerGL_->GetNumPrograms());
+		shaderManagerGL_->GetNumPrograms()
+	);
 }
 
 void GPU_GLES::ClearCacheNextFrame() {
@@ -510,11 +478,12 @@ void GPU_GLES::DoState(PointerWrap &p) {
 	// None of these are necessary when saving.
 	// In Freeze-Frame mode, we don't want to do any of this.
 	if (p.mode == p.MODE_READ && !PSP_CoreParameter().frozen) {
-		textureCacheGL_->Clear(true);
+		textureCache_->Clear(true);
+		depalShaderCache_.Clear();
 		drawEngine_.ClearTrackedVertexArrays();
 
 		gstate_c.Dirty(DIRTY_TEXTURE_IMAGE);
-		framebufferManagerGL_->DestroyAllFBOs();
+		framebufferManager_->DestroyAllFBOs();
 	}
 }
 

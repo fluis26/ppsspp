@@ -19,6 +19,7 @@
 *.exp
 *.qdact
 controls.ini
+desktop.ini
 Debug
 Release
 Windows/.vs
@@ -28,6 +29,7 @@ Windows/ARM64
 Windows/ipch
 Windows/bin-release
 Windows/win-version.h
+Windows/win-version-*.tmp
 android/assets
 ext/_Output
 android/lint.xml
@@ -77,6 +79,7 @@ memstick*
 Cheats
 
 /git-version.cpp
+/git-version-*.tmp
 
 .pspsh.hist
 __testoutput.txt
@@ -113,3 +116,6 @@ debian/ppsspp/
 
 # RenderDoc
 *.rdc
+
+# bad output from libretro. don't want to accidentally add it
+nul

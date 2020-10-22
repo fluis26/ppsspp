@@ -29,13 +29,18 @@
 #undef realloc
 #endif
 
-#include "base/logging.h"
-#include "base/basictypes.h"
-#include "base/stringutil.h"
-#include "ShaderTranslation.h"
+// Weird issue
+#if PPSSPP_PLATFORM(WINDOWS) && PPSSPP_ARCH(ARM)
+#undef free
+#endif
+
+#include "Common/Log.h"
+#include "Common/StringUtils.h"
+
+#include "GPU/Common/ShaderTranslation.h"
 #include "ext/glslang/SPIRV/GlslangToSpv.h"
-#include "thin3d/thin3d.h"
-#include "gfx_es2/gpu_features.h"
+#include "Common/GPU/thin3d.h"
+#include "Common/GPU/OpenGL/GLFeatures.h"
 
 #include "ext/SPIRV-Cross/spirv.hpp"
 #include "ext/SPIRV-Cross/spirv_common.hpp"
@@ -86,6 +91,7 @@ cbuffer data : register(b0) {
 	float2 u_texelDelta;
 	float2 u_pixelDelta;
 	float4 u_time;
+	float4 u_setting;
 	float u_video;
 };
 )";
@@ -96,13 +102,23 @@ R"(#version 430
 #extension GL_ARB_shading_language_420pack : enable
 )";
 
-static const char *pushconstantBufferDecl = R"(
-layout(push_constant) uniform data {
+static const char *vulkanUboDecl = R"(
+layout (std140, set = 0, binding = 0) uniform Data {
 	vec2 u_texelDelta;
 	vec2 u_pixelDelta;
 	vec4 u_time;
+	vec4 u_setting;
 	float u_video;
 };
+)";
+
+static const char *d3d9RegisterDecl = R"(
+float4 gl_HalfPixel : register(c0);
+float2 u_texelDelta : register(c1);
+float2 u_pixelDelta : register(c2);
+float4 u_time : register(c3);
+float4 u_setting : register(c4);
+float u_video : register(c5);
 )";
 
 // SPIRV-Cross' HLSL output has some deficiencies we need to work around.
@@ -110,20 +126,32 @@ layout(push_constant) uniform data {
 // Should probably do it in the source shader instead and then back translate to old style GLSL, but
 // SPIRV-Cross currently won't compile with the Android NDK so I can't be bothered.
 std::string Postprocess(std::string code, ShaderLanguage lang, Draw::ShaderStage stage) {
-	if (lang != HLSL_D3D11)
+	if (lang != HLSL_D3D11 && lang != HLSL_DX9)
 		return code;
 
 	std::stringstream out;
 
 	// Output the uniform buffer.
-	out << cbufferDecl;
+	if (lang == HLSL_D3D11)
+		out << cbufferDecl;
+	else if (lang == HLSL_DX9)
+		out << d3d9RegisterDecl;
 
 	// Alright, now let's go through it line by line and zap the single uniforms.
 	std::string line;
 	std::stringstream instream(code);
 	while (std::getline(instream, line)) {
-		if (line.find("uniform float") != std::string::npos)
+		if (line == "uniform sampler2D sampler0;" && lang == HLSL_DX9) {
+			out << "sampler2D sampler0 : register(s0);\n";
 			continue;
+		}
+		if (line == "uniform sampler2D sampler1;" && lang == HLSL_DX9) {
+			out << "sampler2D sampler1 : register(s1);\n";
+			continue;
+		}
+		if (line.find("uniform float") != std::string::npos) {
+			continue;
+		}
 		out << line << "\n";
 	}
 	std::string output = out.str();
@@ -139,7 +167,7 @@ bool ConvertToVulkanGLSL(std::string *dest, TranslatedShaderMetadata *destMetada
 		const char *replacement;
 	} replacements[] = {
 		{ Draw::ShaderStage::VERTEX, "attribute vec4 a_position;", "layout(location = 0) in vec4 a_position;" },
-		{ Draw::ShaderStage::VERTEX, "attribute vec2 a_texcoord0;", "layout(location = 1) in vec2 a_texcoord0;"},
+		{ Draw::ShaderStage::VERTEX, "attribute vec2 a_texcoord0;", "layout(location = 2) in vec2 a_texcoord0;"},
 		{ Draw::ShaderStage::VERTEX, "varying vec2 v_position;", "layout(location = 0) out vec2 v_position;" },
 		{ Draw::ShaderStage::FRAGMENT, "varying vec2 v_position;", "layout(location = 0) in vec2 v_position;" },
 		{ Draw::ShaderStage::FRAGMENT, "texture2D(", "texture(" },
@@ -151,7 +179,7 @@ bool ConvertToVulkanGLSL(std::string *dest, TranslatedShaderMetadata *destMetada
 		out << "layout (location = 0) out vec4 fragColor0;\n";
 	}
 	// Output the uniform buffer.
-	out << pushconstantBufferDecl;
+	out << vulkanUboDecl;
 
 	// Alright, now let's go through it line by line and zap the single uniforms
 	// and perform replacements.
@@ -162,7 +190,10 @@ bool ConvertToVulkanGLSL(std::string *dest, TranslatedShaderMetadata *destMetada
 		if (line.find("uniform bool") != std::string::npos) {
 			continue;
 		} else if (line.find("uniform sampler2D") == 0) {
-			line = "layout(set = 0, binding = 0) " + line;
+			if (line.find("sampler0") != line.npos)
+				line = "layout(set = 0, binding = 1) " + line;
+			else
+				line = "layout(set = 0, binding = 2) " + line;
 		} else if (line.find("uniform ") != std::string::npos) {
 			continue;
 		} else if (2 == sscanf(line.c_str(), "varying vec%d v_texcoord%d;", &vecSize, &num)) {
@@ -180,7 +211,7 @@ bool ConvertToVulkanGLSL(std::string *dest, TranslatedShaderMetadata *destMetada
 	}
 
 	// DUMPLOG(src.c_str());
-	// ILOG("---->");
+	// INFO_LOG(SYSTEM, "---->");
 	// DUMPLOG(LineNumberString(out.str()).c_str());
 
 	*dest = out.str();
@@ -221,8 +252,8 @@ bool TranslateShader(std::string *dest, ShaderLanguage destLang, TranslatedShade
 	shaderStrings[0] = src.c_str();
 	shader.setStrings(shaderStrings, 1);
 	if (!shader.parse(&Resources, 100, EProfile::ECompatibilityProfile, false, false, messages)) {
-		ELOG("%s", shader.getInfoLog());
-		ELOG("%s", shader.getInfoDebugLog());
+		ERROR_LOG(G3D, "%s", shader.getInfoLog());
+		ERROR_LOG(G3D, "%s", shader.getInfoDebugLog());
 		if (errorMessage) {
 			*errorMessage = shader.getInfoLog();
 			(*errorMessage) += shader.getInfoDebugLog();
@@ -234,8 +265,8 @@ bool TranslateShader(std::string *dest, ShaderLanguage destLang, TranslatedShade
 	program.addShader(&shader);
 
 	if (!program.link(messages)) {
-		ELOG("%s", shader.getInfoLog());
-		ELOG("%s", shader.getInfoDebugLog());
+		ERROR_LOG(G3D, "%s", shader.getInfoLog());
+		ERROR_LOG(G3D, "%s", shader.getInfoDebugLog());
 		if (errorMessage) {
 			*errorMessage = shader.getInfoLog();
 			(*errorMessage) += shader.getInfoDebugLog();
@@ -269,7 +300,8 @@ bool TranslateShader(std::string *dest, ShaderLanguage destLang, TranslatedShade
 		options_common.vertex.fixup_clipspace = true;
 		hlsl.set_hlsl_options(options);
 		hlsl.set_common_options(options_common);
-		*dest = hlsl.compile();
+		std::string raw = hlsl.compile();
+		*dest = Postprocess(raw, destLang, stage);
 		return true;
 	}
 	case HLSL_D3D11:

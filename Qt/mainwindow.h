@@ -8,6 +8,8 @@
 #include <QMainWindow>
 #include <QActionGroup>
 
+#include "Common/System/System.h"
+#include "Common/System/NativeApp.h"
 #include "ConsoleListener.h"
 #include "Core/Core.h"
 #include "Core/Config.h"
@@ -40,6 +42,8 @@ public:
 	~MainWindow() { };
 
 	CoreState GetNextState() { return nextState; }
+
+	void updateMenuGroupInt(QActionGroup *group, int value);
 
 	void updateMenus();
 
@@ -93,6 +97,7 @@ private slots:
 	void pauseAct();
 	void stopAct();
 	void resetAct();
+	void switchUMDAct();
 	void displayRotationGroup_triggered(QAction *action) { g_Config.iInternalScreenRotation = action->data().toInt(); }
 
 	// Debug

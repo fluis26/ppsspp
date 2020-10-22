@@ -4,6 +4,7 @@ export USE_CCACHE=1
 export NDK_CCACHE=ccache
 export HOMEBREW_NO_INSTALL_CLEANUP=1
 export HOMEBREW_NO_AUTO_UPDATE=1
+export HOMEBREW_NO_ANALYTICS=1
 NDK_VER=android-ndk-r18b
 
 download_extract() {
@@ -22,27 +23,6 @@ download_extract_zip() {
 
 travis_before_install() {
     git submodule update --init --recursive
-
-    if [ "$TRAVIS_OS_NAME" = osx ]; then
-        # Depends on Python, wastes time updating...
-        brew uninstall -f mercurial
-
-        for PKG in openssl@1.1 readline pkg-config gdbm sqlite xz python sdl2; do
-            if [ -f $HOME/Library/Caches/Homebrew/$PKG-*.bottle.*.tar.gz ]; then
-                brew upgrade $HOME/Library/Caches/Homebrew/$PKG-*.bottle.*.tar.gz || brew install -f $HOME/Library/Caches/Homebrew/$PKG-*.bottle.*.tar.gz || true
-            fi
-        done
-
-        for PKG in openssl@1.1 readline pkg-config gdbm sqlite xz python sdl2; do
-            if [ ! -f $HOME/Library/Caches/Homebrew/$PKG-*.bottle.*.tar.gz ]; then
-                echo "Rebuilding $PKG as bottle..."
-                brew uninstall -f --ignore-dependencies $PKG && brew install --build-bottle $PKG || true
-                brew bottle $PKG && brew postinstall $PKG || true
-                rm $HOME/Library/Caches/Homebrew/$PKG-*.bottle.*.tar.gz || true
-                mv ./$PKG-*.bottle.*.tar.gz $HOME/Library/Caches/Homebrew/ || true
-            fi
-        done
-    fi
 }
 
 travis_install() {
@@ -135,7 +115,11 @@ travis_script() {
             sed -i 's/>ProgramDatabase<\/DebugInformationFormat>/><\/DebugInformationFormat>/g' $f
         done
 
-        msbuild.exe Windows\\PPSSPP.sln -m -p:CLToolExe=clcache.exe -p:Configuration=Release -p:Platform=x64 -p:TrackFileAccess=false
+        if [ "$UWP" == "TRUE" ]; then
+            msbuild.exe UWP\\PPSSPP_UWP.sln -m -p:CLToolExe=clcache.exe -p:Configuration=Release -p:Platform=x64 -p:TrackFileAccess=false -p:AppxPackageSigningEnabled=false
+        else
+            msbuild.exe Windows\\PPSSPP.sln -m -p:CLToolExe=clcache.exe -p:Configuration=Release -p:Platform=x64 -p:TrackFileAccess=false
+        fi
     fi
 }
 

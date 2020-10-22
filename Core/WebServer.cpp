@@ -18,16 +18,16 @@
 #include <algorithm>
 #include <mutex>
 #include <thread>
-#include <unordered_map>
-#include "base/stringutil.h"
-#include "base/timeutil.h"
-#include "file/fd_util.h"
-#include "net/http_client.h"
-#include "net/http_server.h"
-#include "net/sinks.h"
-#include "thread/threadutil.h"
-#include "Common/FileUtil.h"
+
+#include "Common/Net/HTTPClient.h"
+#include "Common/Net/HTTPServer.h"
+#include "Common/Net/Sinks.h"
+#include "Common/Thread/ThreadUtil.h"
 #include "Common/Log.h"
+#include "Common/File/FileUtil.h"
+#include "Common/File/FileDescriptor.h"
+#include "Common/TimeUtil.h"
+#include "Common/StringUtils.h"
 #include "Core/Config.h"
 #include "Core/Debugger/WebSocket.h"
 #include "Core/WebServer.h"
@@ -37,6 +37,7 @@ enum class ServerStatus {
 	STARTING,
 	RUNNING,
 	STOPPING,
+	FINISHED,
 };
 
 static const char *REPORT_HOSTNAME = "report.ppsspp.org";
@@ -248,7 +249,7 @@ static void ExecuteWebServer() {
 	if (!http->Listen(g_Config.iRemoteISOPort)) {
 		if (!http->Listen(0)) {
 			ERROR_LOG(FILESYS, "Unable to listen on any port");
-			UpdateStatus(ServerStatus::STOPPED);
+			UpdateStatus(ServerStatus::FINISHED);
 			return;
 		}
 	}
@@ -256,11 +257,11 @@ static void ExecuteWebServer() {
 
 	g_Config.iRemoteISOPort = http->Port();
 	RegisterServer(http->Port());
-	double lastRegister = real_time_now();
+	double lastRegister = time_now_d();
 	while (RetrieveStatus() == ServerStatus::RUNNING) {
 		http->RunSlice(1.0);
 
-		double now = real_time_now();
+		double now = time_now_d();
 		if (now > lastRegister + 540.0) {
 			RegisterServer(http->Port());
 			lastRegister = now;
@@ -271,7 +272,7 @@ static void ExecuteWebServer() {
 	StopAllDebuggers();
 	delete http;
 
-	UpdateStatus(ServerStatus::STOPPED);
+	UpdateStatus(ServerStatus::FINISHED);
 }
 
 bool StartWebServer(WebServerFlags flags) {
@@ -284,6 +285,9 @@ bool StartWebServer(WebServerFlags flags) {
 		serverFlags |= (int)flags;
 		return true;
 
+	case ServerStatus::FINISHED:
+		serverThread.join();
+		// Intentional fallthrough.
 	case ServerStatus::STOPPED:
 		serverStatus = ServerStatus::STARTING;
 		serverFlags = (int)flags;
@@ -318,11 +322,13 @@ bool WebServerStopped(WebServerFlags flags) {
 	if (serverStatus == ServerStatus::RUNNING) {
 		return (serverFlags & (int)flags) == 0;
 	}
-	return serverStatus == ServerStatus::STOPPED;
+	return serverStatus == ServerStatus::STOPPED || serverStatus == ServerStatus::FINISHED;
 }
 
 void ShutdownWebServer() {
 	StopWebServer(WebServerFlags::ALL);
-	if (serverThread.joinable())
+
+	if (serverStatus != ServerStatus::STOPPED)
 		serverThread.join();
+	serverStatus = ServerStatus::STOPPED;
 }
