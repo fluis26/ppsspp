@@ -6,6 +6,7 @@
 - (void) PushCameraImageIOS:(long long)len buffer:(unsigned char*)data;
 @end
 
+#if TARGET_OS_IOS
 @interface CameraHelper : NSObject<AVCaptureVideoDataOutputSampleBufferDelegate>
 
 @property (nonatomic, strong) id<CameraFrameDelegate> delegate;
@@ -15,3 +16,4 @@
 - (void) stopVideo;
 
 @end
+#endif

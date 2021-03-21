@@ -19,6 +19,9 @@ do
 		--ios-xcode) CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=cmake/Toolchains/ios.cmake -DIOS_PLATFORM=OS -GXcode ${CMAKE_ARGS}"
 			TARGET_OS=iOS-xcode
 			;;
+		--tvos-xcode) CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=cmake/Toolchains/tvos.cmake -DIOS_PLATFORM=TVOS -GXcode ${CMAKE_ARGS}"
+			TARGET_OS=tvOS-xcode
+			;;
 		--rpi-armv6)
 			CMAKE_ARGS="-DCMAKE_TOOLCHAIN_FILE=cmake/Toolchains/raspberry.armv6.cmake ${CMAKE_ARGS}"
 			;;

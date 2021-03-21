@@ -107,10 +107,14 @@
 	// Dispatch later to prevent "no window is preset" error
 	dispatch_async(dispatch_get_main_queue(), ^{
 		if (screen != [UIScreen mainScreen]) {
+#if TARGET_OS_TV
+            UIScreenMode* mode = [screen currentMode];
+#else
 			NSUInteger count = [[screen availableModes] count];
 			UIScreenMode* mode = [screen availableModes][count - 1];
 			[screen setCurrentMode:mode];
 			mode = [screen currentMode];
+#endif
 			// Fix overscan
 			// TODO: Hacky solution. Screen is still scaled even if UIScreenOverscanCompensationNone is set.
 			[screen setOverscanCompensation:UIScreenOverscanCompensationNone];
@@ -138,9 +142,11 @@
 	if ([screen respondsToSelector:@selector(nativeScale)]) {
 		scale = screen.nativeScale;
 	}
-	
-	CGSize size = screen.applicationFrame.size;
-	
+#if TARGET_OS_TV
+    CGSize size = screen.bounds.size;
+#else
+    CGSize size = screen.applicationFrame.size;
+#endif
 	if (size.height > size.width) {
 		float h = size.height;
 		size.height = size.width;

@@ -17,7 +17,9 @@
     if ([locationManager respondsToSelector:@selector(requestWhenInUseAuthorization)]) {
         [locationManager requestWhenInUseAuthorization];
     }
+#if TARGET_OS_IOS
     [locationManager startUpdatingLocation];
+#endif
 }
 
 -(void) stopLocationUpdates {
