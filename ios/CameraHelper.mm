@@ -1,3 +1,4 @@
+#if TARGET_OS_IOS
 #include <vector>
 #include <string>
 #include "Core/Config.h"
@@ -156,3 +157,5 @@ NSString *getSelectedCamera() {
 }
 
 @end
+#else
+#endif

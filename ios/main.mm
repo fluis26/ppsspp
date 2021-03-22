@@ -35,38 +35,41 @@ bool get_debugged() {
 	int rv = csops(getpid(), CS_OPS_STATUS, &flags, sizeof(flags));
 	if (rv==0 && flags&CS_DEBUGGED) return true;
 
-	pid_t pid = fork();
-	if (pid > 0) {
-		int st,rv,i=0;
-		do {
-			usleep(500);
-			rv = waitpid(pid, &st, 0);
-		} while (rv<0 && i++<10);
-		if (rv<0) fprintf(stderr, "Unable to wait for child?\n");
-	} else if (pid == 0) {
-		pid_t ppid = getppid();
-		int rv = ptrace(PT_ATTACHEXC, ppid, 0, 0);
-		if (rv) {
-			perror("Unable to attach to process");
-			exit(1);
-		}
-		for (int i=0; i<100; i++) {
-			usleep(1000);
-			errno = 0;
-			rv = ptrace(PT_DETACH, ppid, 0, 0);
-			if (rv==0) break;
-		}
-		if (rv) {
-			perror("Unable to detach from process");
-			exit(1);
-		}
-		exit(0);
-	} else {
-		perror("Unable to fork");
-	}
-
-	rv = csops(getpid(), CS_OPS_STATUS, &flags, sizeof(flags));
-	if (rv==0 && flags&CS_DEBUGGED) return true;
+#if TARGET_OS_IOS
+    pid_t pid = fork();
+    if (pid > 0) {
+        int st,rv,i=0;
+        do {
+            usleep(500);
+            rv = waitpid(pid, &st, 0);
+        } while (rv<0 && i++<10);
+        if (rv<0) fprintf(stderr, "Unable to wait for child?\n");
+    } else if (pid == 0) {
+        pid_t ppid = getppid();
+        int rv = ptrace(PT_ATTACHEXC, ppid, 0, 0);
+        if (rv) {
+            perror("Unable to attach to process");
+            exit(1);
+        }
+        for (int i=0; i<100; i++) {
+            usleep(1000);
+            errno = 0;
+            rv = ptrace(PT_DETACH, ppid, 0, 0);
+            if (rv==0) break;
+        }
+        if (rv) {
+            perror("Unable to detach from process");
+            exit(1);
+        }
+        exit(0);
+    } else {
+        perror("Unable to fork");
+    }
+    
+    rv = csops(getpid(), CS_OPS_STATUS, &flags, sizeof(flags));
+    if (rv==0 && flags&CS_DEBUGGED) return true;
+    
+#endif
 
 	return false;
 }
@@ -82,7 +85,9 @@ kern_return_t catch_exception_raise(mach_port_t exception_port,
 
 void *exception_handler(void *argument) {
 	auto port = *reinterpret_cast<mach_port_t *>(argument);
-	mach_msg_server(exc_server, 2048, port, 0);
+#if TARGET_OS_IOS
+    mach_msg_server(exc_server, 2048, port, 0);
+#endif
 	return NULL;
 }
 
@@ -220,7 +225,9 @@ BOOL SupportsTaptic() {
 }
 
 void Vibrate(int mode) {
-	if (SupportsTaptic()) {
+#if TARGET_OS_IOS
+
+    if (SupportsTaptic()) {
 		PPSSPPUIApplication* app = (PPSSPPUIApplication*)[UIApplication sharedApplication];
 		if(app.feedbackGenerator == nil)
 		{
@@ -237,6 +244,7 @@ void Vibrate(int mode) {
 
 		AudioServicesPlaySystemSoundWithVibration(kSystemSoundID_Vibrate, nil, dictionary);
 	}
+#endif
 }
 
 int main(int argc, char *argv[])

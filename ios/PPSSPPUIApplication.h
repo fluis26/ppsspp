@@ -15,7 +15,9 @@
 {
 }
 
+#if TARGET_OS_IOS
 @property (nonatomic, strong) UISelectionFeedbackGenerator *feedbackGenerator;
+#endif
 
 @end
 

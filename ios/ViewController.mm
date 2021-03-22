@@ -100,7 +100,9 @@ static UITouch *g_touches[10];
 
 __unsafe_unretained ViewController* sharedViewController;
 static GraphicsContext *graphicsContext;
+#if TARGET_OS_IOS
 static CameraHelper *cameraHelper;
+#endif
 static LocationHelper *locationHelper;
 
 @interface ViewController () {
@@ -161,6 +163,7 @@ static LocationHelper *locationHelper;
 - (void)subtleVolume:(SubtleVolume *)volumeView didChange:(CGFloat)value {
 }
 
+#if TARGET_OS_IOS
 - (void)shareText:(NSString *)text {
 	NSArray *items = @[text];
 	UIActivityViewController * viewController = [[UIActivityViewController alloc] initWithActivityItems:items applicationActivities:nil];
@@ -168,7 +171,7 @@ static LocationHelper *locationHelper;
 		[self presentViewController:viewController animated:YES completion:nil];
 	});
 }
-
+#endif
 - (void)viewSafeAreaInsetsDidChange {
 	if (@available(iOS 11.0, *)) {
 		[super viewSafeAreaInsetsDidChange];
@@ -187,8 +190,10 @@ static LocationHelper *locationHelper;
 
 	UIScreen* screen = [(AppDelegate*)[UIApplication sharedApplication].delegate screen];
 	self.view.frame = [screen bounds];
+#if TARGET_OS_IOS
 	self.view.multipleTouchEnabled = YES;
-	self.context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3];
+#endif
+    self.context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES3];
 	
 	if (!self.context) {
 		self.context = [[EAGLContext alloc] initWithAPI:kEAGLRenderingAPIOpenGLES2];
@@ -245,10 +250,10 @@ static LocationHelper *locationHelper;
 	volume.delegate = self;
 	[self.view addSubview:volume];
 	[self.view bringSubviewToFront:volume];
-
+#if TARGET_OS_IOS
 	cameraHelper = [[CameraHelper alloc] init];
 	[cameraHelper setDelegate:self];
-
+#endif
 	locationHelper = [[LocationHelper alloc] init];
 	[locationHelper setDelegate:self];
 	
@@ -752,6 +757,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 }
 #endif
 
+#if TARGET_OS_IOS
 void setCameraSize(int width, int height) {
 	[cameraHelper setCameraSize: width h:height];
 }
@@ -763,6 +769,7 @@ void startVideo() {
 void stopVideo() {
 	[cameraHelper stopVideo];
 }
+#endif
 
 -(void) PushCameraImageIOS:(long long)len buffer:(unsigned char*)data {
 	Camera::pushCameraImage(len, data);
