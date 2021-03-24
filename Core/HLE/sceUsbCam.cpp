@@ -322,8 +322,8 @@ std::vector<std::string> Camera::getDeviceList() {
 		if (winCamera) {
 			return winCamera->getDeviceList();
 		}
-	#elif PPSSPP_PLATFORM(ANDROID) || PPSSPP_PLATFORM(IOS)
-		return __cameraGetDeviceList();
+//	#elif PPSSPP_PLATFORM(ANDROID) || PPSSPP_PLATFORM(IOS)
+//		return __cameraGetDeviceList();
 	#elif defined(USING_QT_UI) // Qt:macOS / Qt:Linux
 		return __qt_getDeviceList();
 	#elif PPSSPP_PLATFORM(LINUX) // SDL:Linux

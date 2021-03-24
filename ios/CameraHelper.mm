@@ -157,5 +157,4 @@ NSString *getSelectedCamera() {
 }
 
 @end
-#else
 #endif

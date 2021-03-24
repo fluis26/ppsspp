@@ -178,16 +178,18 @@ void System_SendMessage(const char *command, const char *parameter) {
 	} else if (!strcmp(command, "sharetext")) {
 		NSString *text = [NSString stringWithUTF8String:parameter];
 		[sharedViewController shareText:text];
-	} else if (!strcmp(command, "camera_command")) {
-		if (!strncmp(parameter, "startVideo", 10)) {
-			int width = 0, height = 0;
-			sscanf(parameter, "startVideo_%dx%d", &width, &height);
-			setCameraSize(width, height);
-			startVideo();
-		} else if (!strcmp(parameter, "stopVideo")) {
-			stopVideo();
-		}
-	} else if (!strcmp(command, "gps_command")) {
+	}
+//    else if (!strcmp(command, "camera_command")) {
+//		if (!strncmp(parameter, "startVideo", 10)) {
+//			int width = 0, height = 0;
+//			sscanf(parameter, "startVideo_%dx%d", &width, &height);
+//			setCameraSize(width, height);
+//			startVideo();
+//		} else if (!strcmp(parameter, "stopVideo")) {
+//			stopVideo();
+//		}
+//	}
+    else if (!strcmp(command, "gps_command")) {
 		if (!strcmp(parameter, "open")) {
 			startLocation();
 		} else if (!strcmp(parameter, "close")) {
