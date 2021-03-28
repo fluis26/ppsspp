@@ -223,14 +223,19 @@ static LocationHelper *locationHelper;
 	[self.view addSubview:self.iCadeView];
 	self.iCadeView.delegate = self;
 	self.iCadeView.active = YES;*/
+    
+    UITapGestureRecognizer *menuGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
+    menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
+    [self.view addGestureRecognizer:menuGestureRecognizer];
+
 	
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 	if ([GCController class]) {
 		if ([[GCController controllers] count] > 0) {
 			[self setupController:[[GCController controllers] firstObject]];
 		}
 	}
-#endif
+//#endif
 	
 	CGFloat margin = 0;
 	CGFloat height = 16;
@@ -276,6 +281,10 @@ static LocationHelper *locationHelper;
 		
 		threadStopped = true;
 	});
+}
+
+-(void)menuKeyWasPressed {
+    NSLog(@"Menu key was pressed");
 }
 
 - (void)didReceiveMemoryWarning
