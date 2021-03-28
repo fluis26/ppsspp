@@ -696,8 +696,10 @@ if(USE_FFMPEG)
 				elseif(X86)
 					set(PLATFORM_ARCH "android/x86")
 				endif()
-			elseif(IOS)
+			elseif(IOS AND NOT TVOS)
 				set(PLATFORM_ARCH "ios/universal")
+			elseif(TVOS)
+				set(PLATFORM_ARCH "tvos/arm64")
 			elseif(MACOSX)
 				set(PLATFORM_ARCH "macosx/universal")
 			elseif(LINUX)
@@ -933,7 +935,7 @@ if(ANDROID)
 		android/jni/OpenSLContext.h
 	)
 	# No target
-elseif(IOS)
+elseif(IOS AND NOT TVOS)
 	set(nativeExtra ${nativeExtra}
 		ios/main.mm
 		ios/AppDelegate.mm
@@ -977,6 +979,52 @@ elseif(IOS)
 	set_source_files_properties(ios/LocationHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
 
 	set(TargetBin PPSSPP)
+
+elseif(TVOS)
+	set(nativeExtra ${nativeExtra}
+		ios/main.mm
+		ios/AppDelegate.mm
+		ios/AppDelegate.h
+		ios/DisplayManager.h
+		ios/DisplayManager.mm
+		ios/ViewController.mm
+		ios/ViewController.h
+		ios/iOSCoreAudio.mm
+		ios/iOSCoreAudio.h
+		ios/CameraHelper.mm
+		ios/CameraHelper.h
+		ios/LocationHelper.mm
+		ios/LocationHelper.h
+		ios/PPSSPPUIApplication.h
+		ios/PPSSPPUIApplication.mm
+		ios/SmartKeyboardMap.cpp
+		ios/SmartKeyboardMap.hpp
+		ios/SubtleVolume.h
+		ios/SubtleVolume.mm
+		ios/iCade/iCadeReaderView.h
+		ios/iCade/iCadeReaderView.m
+		ios/iCade/iCadeState.h
+	)
+	set(nativeExtraLibs ${nativeExtraLibs} "-framework Foundation -framework MediaPlayer -framework AudioToolbox -framework CoreGraphics -framework QuartzCore -framework UIKit -framework GLKit -framework OpenAL -framework AVFoundation -framework CoreLocation -framework CoreVideo -framework CoreMedia" )
+	if(EXISTS "${CMAKE_TVOS_SDK_ROOT}/System/Library/Frameworks/GameController.framework")
+		set(nativeExtraLibs ${nativeExtraLibs} "-weak_framework GameController")
+	endif()
+
+	if(NOT ICONV_LIBRARY)
+		set(nativeExtraLibs ${nativeExtraLibs} iconv)
+	endif()
+
+	set_source_files_properties(ios/AppDelegate.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(ios/ViewController.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(ios/iOSCoreAudio.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(ios/PPSSPPUIApplication.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(ios/iCade/iCadeReaderView.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(ios/main.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(ios/CameraHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(ios/LocationHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+
+	set(TargetBin PPSSPP)
+
 elseif(USING_QT_UI)
 	set(CMAKE_AUTOMOC ON)
 	find_package(Qt5 COMPONENTS OpenGL Gui Core Multimedia)
@@ -2202,7 +2250,7 @@ if(NOT ANDROID)
 	file(INSTALL assets/flash0 DESTINATION assets)
 endif()
 # packaging and code signing
-if(IOS)
+if(IOS AND NOT TVOS)
 	set(DEPLOYMENT_TARGET 8.0)
 	file(GLOB IOSAssets ios/assets/*.png)
 	list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/ios/assets/Default-568h@2x.png)
@@ -2237,6 +2285,45 @@ if(IOS)
 		RESOURCE "MoltenVK/iOS/Frameworks"
 		XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}
 		XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "iPhone/iPad"
+		XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
+		XCODE_ATTRIBUTE_ENABLE_BITCODE NO
+		XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "-"
+	)
+elseif(TVOS)
+	set(DEPLOYMENT_TARGET 11.4)
+	file(GLOB IOSAssets tvos/assets/*.png)
+	list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@2x.png)
+	list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@3x.png)
+	file(INSTALL ${IOSAssets} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets)
+	file(GLOB IOSAssets tvos/assets/Default-568h@*.png)
+	file(INSTALL ${IOSAssets} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+	if(IOS_DEBUG)
+		file(INSTALL pspautotests DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets)
+	endif()
+	set(RSRC_XIB_FILES assets/Icon@2x.png)
+	set(RSRC_XIB_FILES "Launch Screen.storyboard")
+	set_source_files_properties(${RSRC_XIB_FILES}
+		PROPERTIES MACOSX_PACKAGE_LOCATION Resources
+	)
+	#This breaks in modern XCode. Not sure when it worked...
+	#if(CMAKE_GENERATOR STREQUAL "Xcode")
+	#	set(APP_DIR_NAME "$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)")
+	#else()
+		set(APP_DIR_NAME "$<TARGET_FILE_DIR:PPSSPP>")
+	#endif()
+	add_custom_command(TARGET PPSSPP POST_BUILD
+		COMMAND mkdir -p \"${APP_DIR_NAME}\"
+		COMMAND tar -c -C ${CMAKE_CURRENT_BINARY_DIR} --exclude .DS_Store --exclude .git assets *.png | tar -x -C \"${APP_DIR_NAME}\"
+		COMMAND /bin/bash "${CMAKE_SOURCE_DIR}/ios/macbundle.sh" \"${APP_DIR_NAME}\"
+	)
+	set(MACOSX_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET})
+	set_target_properties(${TargetBin} PROPERTIES
+		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/tvos/PPSSPP-Info.plist"
+		RESOURCE "tvos/Launch Screen.storyboard"
+		RESOURCE "tvos/Settings.bundle"
+		RESOURCE "MoltenVK/iOS/Frameworks"
+		XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}
+		XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "AppleTV"
 		XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
 		XCODE_ATTRIBUTE_ENABLE_BITCODE NO
 		XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "-"
