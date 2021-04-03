@@ -974,29 +974,76 @@ elseif(IOS AND NOT TVOS)
 
 elseif(TVOS)
 	set(nativeExtra ${nativeExtra}
-		ios/main.mm
-		ios/AppDelegate.mm
-		ios/AppDelegate.h
-		ios/DisplayManager.h
-		ios/DisplayManager.mm
-		ios/ViewController.mm
-		ios/ViewController.h
-		ios/iOSCoreAudio.mm
-		ios/iOSCoreAudio.h
-		ios/CameraHelper.mm
-		ios/CameraHelper.h
-		ios/LocationHelper.mm
-		ios/LocationHelper.h
-		ios/PPSSPPUIApplication.h
-		ios/PPSSPPUIApplication.mm
-		ios/SmartKeyboardMap.cpp
-		ios/SmartKeyboardMap.hpp
-		ios/SubtleVolume.h
-		ios/SubtleVolume.mm
-		ios/iCade/iCadeReaderView.h
-		ios/iCade/iCadeReaderView.m
-		ios/iCade/iCadeState.h
+		tvos/main.mm
+		tvos/AppDelegate.mm
+		tvos/AppDelegate.h
+		tvos/DisplayManager.h
+		tvos/DisplayManager.mm
+		tvos/ViewController.mm
+		tvos/ViewController.h
+		tvos/iOSCoreAudio.mm
+		tvos/iOSCoreAudio.h
+		tvos/CameraHelper.mm
+		tvos/CameraHelper.h
+		tvos/LocationHelper.mm
+		tvos/LocationHelper.h
+		tvos/PPSSPPUIApplication.h
+		tvos/PPSSPPUIApplication.mm
+		tvos/SmartKeyboardMap.cpp
+		tvos/SmartKeyboardMap.hpp
+		tvos/SubtleVolume.h
+		tvos/SubtleVolume.mm
+		tvos/iCade/iCadeReaderView.h
+		tvos/iCade/iCadeReaderView.m
+		tvos/iCade/iCadeState.h
+		tvos/PVWebServer.m
+		tvos/PVWebServer.h
 	)
+
+	add_library(http STATIC
+	ext/http/GCDWebDAVServer/GCDWebDAVServer.h
+	ext/http/GCDWebDAVServer/GCDWebDAVServer.m
+	ext/http/GCDWebServer/Core/GCDWebServer.h
+	ext/http/GCDWebServer/Core/GCDWebServer.m
+	ext/http/GCDWebServer/Core/GCDWebServerConnection.h
+	ext/http/GCDWebServer/Core/GCDWebServerConnection.m
+	ext/http/GCDWebServer/Core/GCDWebServerFunctions.h
+	ext/http/GCDWebServer/Core/GCDWebServerFunctions.m
+	ext/http/GCDWebServer/Core/GCDWebServerHTTPStatusCodes.h
+	ext/http/GCDWebServer/Core/GCDWebServerPrivate.h
+	ext/http/GCDWebServer/Core/GCDWebServerRequest.h
+	ext/http/GCDWebServer/Core/GCDWebServerRequest.m
+	ext/http/GCDWebServer/Core/GCDWebServerResponse.h
+	ext/http/GCDWebServer/Core/GCDWebServerResponse.m
+	ext/http/GCDWebServer/Requests/GCDWebServerDataRequest.h
+	ext/http/GCDWebServer/Requests/GCDWebServerDataRequest.m
+	ext/http/GCDWebServer/Requests/GCDWebServerFileRequest.h
+	ext/http/GCDWebServer/Requests/GCDWebServerFileRequest.m
+	ext/http/GCDWebServer/Requests/GCDWebServerMultiPartFormRequest.h
+	ext/http/GCDWebServer/Requests/GCDWebServerMultiPartFormRequest.m
+	ext/http/GCDWebServer/Requests/GCDWebServerURLEncodedFormRequest.h
+	ext/http/GCDWebServer/Requests/GCDWebServerURLEncodedFormRequest.m
+	ext/http/GCDWebServer/Responses/GCDWebServerDataResponse.h
+	ext/http/GCDWebServer/Responses/GCDWebServerDataResponse.m
+	ext/http/GCDWebServer/Responses/GCDWebServerErrorResponse.h
+	ext/http/GCDWebServer/Responses/GCDWebServerErrorResponse.m
+	ext/http/GCDWebServer/Responses/GCDWebServerFileResponse.h
+	ext/http/GCDWebServer/Responses/GCDWebServerFileResponse.m
+	ext/http/GCDWebServer/Responses/GCDWebServerStreamedResponse.h
+	ext/http/GCDWebServer/Responses/GCDWebServerStreamedResponse.m
+	ext/http/GCDWebUploader/GCDWebUploader.h
+	ext/http/GCDWebUploader/GCDWebUploader.m
+	)
+
+	include_directories(ext/http/GCDWebDAVServer)
+	include_directories(ext/http/GCDWebServer/Core)
+	include_directories(ext/http/GCDWebServer/Requests)
+	include_directories(ext/http/GCDWebServer/Responses)
+	include_directories(ext/http/GCDWebUploader)
+
+	set_property (TARGET http APPEND_STRING PROPERTY 
+              COMPILE_FLAGS "-fobjc-arc")
+
 	set(nativeExtraLibs ${nativeExtraLibs} "-framework Foundation -framework MediaPlayer -framework AudioToolbox -framework CoreGraphics -framework QuartzCore -framework UIKit -framework GLKit -framework OpenAL -framework AVFoundation -framework CoreLocation -framework CoreVideo -framework CoreMedia -framework MobileCoreServices -framework SystemConfiguration -lxml2" )
 	if(EXISTS "${CMAKE_TVOS_SDK_ROOT}/System/Library/Frameworks/GameController.framework")
 		set(nativeExtraLibs ${nativeExtraLibs} "-weak_framework GameController")
@@ -1006,14 +1053,14 @@ elseif(TVOS)
 		set(nativeExtraLibs ${nativeExtraLibs} iconv)
 	endif()
 
-	set_source_files_properties(ios/AppDelegate.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
-	set_source_files_properties(ios/ViewController.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
-	set_source_files_properties(ios/iOSCoreAudio.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
-	set_source_files_properties(ios/PPSSPPUIApplication.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
-	set_source_files_properties(ios/iCade/iCadeReaderView.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
-	set_source_files_properties(ios/main.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
-	set_source_files_properties(ios/CameraHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
-	set_source_files_properties(ios/LocationHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/AppDelegate.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/ViewController.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/iOSCoreAudio.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/PPSSPPUIApplication.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/iCade/iCadeReaderView.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/main.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/CameraHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/LocationHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
 
 	set(TargetBin PPSSPP)
 
@@ -2233,6 +2280,9 @@ if(TargetBin)
 		add_executable(${TargetBin} ${NativeAppSource})
 	endif()
 	target_link_libraries(${TargetBin} ${LinkCommon} Common)
+	if(TVOS)
+		target_link_libraries(http)
+	endif()
 endif()
 
 # installs
@@ -2296,6 +2346,7 @@ elseif(TVOS)
 	set_source_files_properties(${RSRC_XIB_FILES}
 		PROPERTIES MACOSX_PACKAGE_LOCATION Resources
 	)
+
 	#This breaks in modern XCode. Not sure when it worked...
 	#if(CMAKE_GENERATOR STREQUAL "Xcode")
 	#	set(APP_DIR_NAME "$(TARGET_BUILD_DIR)/$(FULL_PRODUCT_NAME)")
@@ -2313,6 +2364,7 @@ elseif(TVOS)
 		RESOURCE "tvos/Launch Screen.storyboard"
 		RESOURCE "tvos/Settings.bundle"
 		RESOURCE "MoltenVK/iOS/Frameworks"
+		RESOURCE "ext/http/GCDWebUploader/GCDWebUploader.bundle"
 		XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}
 		XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "AppleTV"
 		XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
