@@ -954,19 +954,15 @@ static void PPGeDecimateTextImages(int age) {
 	}
 }
 
+static std::string PPGeSanitizeText(const std::string &text) {
+	return SanitizeUTF8(text);
+}
+
 void PPGeDrawText(const char *text, float x, float y, const PPGeStyle &style) {
 	if (!text) {
 		return;
 	}
-	// Seen in Ratchet & Clank - Secret Agent. To match the output of the real thing, we have to remove
-	// both the overlong encoding and "ENTR", whatever that is. If we just let SanitizeUTF8 remove
-	// the overlong null, the rest of the string is missing in the bottom left corner (save size, etc).
-	// It doesn't seem to be using sceCcc.
-	// Note how the double "" is required in the middle of the string to end the \x80 constant (otherwise it takes E).
-	// TODO: Potentially if the string is only ended by a C080, ReplaceAll might overshoot :(
-	std::string str = ReplaceAll(text, "\xC0\x80""ENTR", "");
-	// Then SanitizeUTF8 is needed to get rid of various other overlong encodings.
-	str = SanitizeUTF8(str);
+	std::string str = PPGeSanitizeText(text);
 	if (str.empty()) {
 		return;
 	}
@@ -1013,7 +1009,7 @@ static std::string CropLinesToCount(const std::string &s, int numLines) {
 }
 
 void PPGeDrawTextWrapped(const char *text, float x, float y, float wrapWidth, float wrapHeight, const PPGeStyle &style) {
-	std::string s = text;
+	std::string s = PPGeSanitizeText(text);
 	if (wrapHeight != 0.0f) {
 		s = StripTrailingWhite(s);
 	}
