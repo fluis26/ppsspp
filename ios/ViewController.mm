@@ -9,6 +9,7 @@
 #import "ViewController.h"
 #import "DisplayManager.h"
 #import "SubtleVolume.h"
+#import "PVWebServer.h"
 #import <GLKit/GLKit.h>
 #include <cassert>
 
@@ -112,9 +113,9 @@ static LocationHelper *locationHelper;
 @property (nonatomic, strong) EAGLContext* context;
 
 //@property (nonatomic) iCadeReaderView* iCadeView;
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 @property (nonatomic) GCController *gameController __attribute__((weak_import));
-#endif
+//#endif
 
 @end
 
@@ -147,13 +148,13 @@ static LocationHelper *locationHelper;
 
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appWillTerminate:) name:UIApplicationWillTerminateNotification object:nil];
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 		if ([GCController class]) // Checking the availability of a GameController framework
 		{
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidConnect:) name:GCControllerDidConnectNotification object:nil];
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidDisconnect:) name:GCControllerDidDisconnectNotification object:nil];
 		}
-#endif
+//#endif
 	}
 	return self;
 }
@@ -207,7 +208,9 @@ static LocationHelper *locationHelper;
 	self.preferredFramesPerSecond = 60;
 
 	[[DisplayManager shared] updateResolution:[UIScreen mainScreen]];
+    [[PVWebServer sharedInstance] startServers];
 
+    
 	graphicsContext = new IOSGraphicsContext();
 	
 	graphicsContext->GetDrawContext()->SetErrorCallback([](const char *shortDesc, const char *details, void *userdata) {
@@ -227,6 +230,26 @@ static LocationHelper *locationHelper;
     UITapGestureRecognizer *menuGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
     menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
     [self.view addGestureRecognizer:menuGestureRecognizer];
+    
+    UITapGestureRecognizer *selectGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(selectKeyWasPressed)];
+    selectGestureRecognizer.allowedPressTypes = @[@(UIPressTypeSelect)];
+    [self.view addGestureRecognizer:selectGestureRecognizer];
+    
+    UISwipeGestureRecognizer *swipeDownGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeDown)];
+    swipeDownGestureRecognizer.direction = UISwipeGestureRecognizerDirectionDown;
+    [self.view addGestureRecognizer:swipeDownGestureRecognizer];
+    
+    UISwipeGestureRecognizer *swipeUpGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeUp)];
+    swipeUpGestureRecognizer.direction = UISwipeGestureRecognizerDirectionUp;
+    [self.view addGestureRecognizer:swipeUpGestureRecognizer];
+
+    UISwipeGestureRecognizer *swipeLeftGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeLeft)];
+    swipeLeftGestureRecognizer.direction = UISwipeGestureRecognizerDirectionLeft;
+    [self.view addGestureRecognizer:swipeLeftGestureRecognizer];
+
+    UISwipeGestureRecognizer *swipeRightGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeRight)];
+    swipeRightGestureRecognizer.direction = UISwipeGestureRecognizerDirectionRight;
+    [self.view addGestureRecognizer:swipeRightGestureRecognizer];
 
 	
 //#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
@@ -287,6 +310,73 @@ static LocationHelper *locationHelper;
     NSLog(@"Menu key was pressed");
 }
 
+-(void)selectKeyWasPressed {
+    NSLog(@"Select key was pressed");
+    KeyInput key;
+    key.deviceId = DEVICE_ID_PAD_0;
+    key.flags = KEY_DOWN;
+    key.keyCode = NKCODE_BUTTON_9;
+    NativeKey(key);
+    key.flags = KEY_UP;
+    NativeKey(key);
+}
+
+-(void)swipeDown {
+    NSLog(@"Swipe down");
+    KeyInput key;
+    key.deviceId = DEVICE_ID_PAD_0;
+    key.flags = KEY_DOWN;
+    key.keyCode = NKCODE_DPAD_DOWN;
+    NativeKey(key);
+    key.flags = KEY_UP;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
+        NativeKey(key);
+    });
+//    NativeKey(key);
+}
+
+-(void)swipeUp {
+    NSLog(@"Swipe up");
+    KeyInput key;
+    key.deviceId = DEVICE_ID_PAD_0;
+    key.flags = KEY_DOWN;
+    key.keyCode = NKCODE_DPAD_UP;
+    NativeKey(key);
+    key.flags = KEY_UP;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
+        NativeKey(key);
+    });
+//    NativeKey(key);
+}
+
+-(void)swipeLeft {
+    NSLog(@"Swipe left");
+    KeyInput key;
+    key.deviceId = DEVICE_ID_PAD_0;
+    key.flags = KEY_DOWN;
+    key.keyCode = NKCODE_DPAD_LEFT;
+    NativeKey(key);
+    key.flags = KEY_UP;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
+        NativeKey(key);
+    });
+//    NativeKey(key);
+}
+
+-(void)swipeRight {
+    NSLog(@"Swipe right");
+    KeyInput key;
+    key.deviceId = DEVICE_ID_PAD_0;
+    key.flags = KEY_DOWN;
+    key.keyCode = NKCODE_DPAD_RIGHT;
+    NativeKey(key);
+    key.flags = KEY_UP;
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
+        NativeKey(key);
+    });
+//    NativeKey(key);
+}
+
 - (void)didReceiveMemoryWarning
 {
 	[super didReceiveMemoryWarning];
@@ -330,11 +420,11 @@ static LocationHelper *locationHelper;
 
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 	if ([GCController class]) {
 		self.gameController = nil;
 	}
-#endif
+//#endif
 
 	if (graphicsContext) {
 		graphicsContext->Shutdown();
@@ -422,6 +512,11 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 
 	return -1;
 }
+
+//- (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
+//- (void)pressesChanged:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
+//- (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
+//- (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
 
 
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
@@ -585,7 +680,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 	
 }
 
-#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 - (void)controllerDidConnect:(NSNotification *)note
 {
 	if (![[GCController controllers] containsObject:self.gameController]) self.gameController = nil;
@@ -695,7 +790,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 		[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_10]; // Start
 	};
 
-#if defined(__IPHONE_12_1) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_12_1
+//#if defined(__IPHONE_12_1) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_12_1
 	if (extendedProfile.leftThumbstickButton != nil) {
 		extendedProfile.leftThumbstickButton.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_11];
@@ -706,8 +801,8 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_12];
 		};
 	}
-#endif
-#if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0
+//#endif
+//#if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0
 	if (extendedProfile.buttonOptions != nil) {
 		extendedProfile.buttonOptions.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_13];
@@ -718,14 +813,14 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_14];
 		};
 	}
-#endif
-#if defined(__IPHONE_14_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_14_0
+//#endif
+//#if defined(__IPHONE_14_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_14_0
 	if (extendedProfile.buttonHome != nil) {
 		extendedProfile.buttonHome.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_15];
 		};
 	}
-#endif
+//#endif
 	
 	extendedProfile.leftThumbstick.xAxis.valueChangedHandler = ^(GCControllerAxisInput *axis, float value) {
 		AxisInput axisInput;
@@ -764,7 +859,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 		NativeAxis(axisInput);
 	};
 }
-#endif
+//#endif
 
 #if TARGET_OS_IOS
 void setCameraSize(int width, int height) {
