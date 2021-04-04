@@ -1041,6 +1041,8 @@ elseif(TVOS)
 	include_directories(ext/http/GCDWebServer/Responses)
 	include_directories(ext/http/GCDWebUploader)
 
+	set(nativeExtraLibs ${nativeExtraLibs} http)
+
 	set_property (TARGET http APPEND_STRING PROPERTY 
               COMPILE_FLAGS "-fobjc-arc")
 
@@ -2366,7 +2368,7 @@ elseif(TVOS)
 		RESOURCE "MoltenVK/iOS/Frameworks"
 		RESOURCE "ext/http/GCDWebUploader/GCDWebUploader.bundle"
 		XCODE_ATTRIBUTE_IPHONEOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}
-		XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "AppleTV"
+		XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "Apple TV"
 		XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
 		XCODE_ATTRIBUTE_ENABLE_BITCODE NO
 		XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "-"

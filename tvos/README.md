@@ -1,4 +1,4 @@
-iOS Build Instructions
+tvOS Build Instructions
 ======================
 
 Prerequisites:
@@ -30,12 +30,16 @@ Change directory to the newly created ppsspp directory and run:
 
 The above command will pull in the submodules required by PPSSPP, including the native, ffmpeg, and lang directories.  Included in the ffmpeg directory should be the necessary libs and includes for ffmpeg, so most people can skip the next command.  However, if you need to recompile ffmpeg for some reason, change directory into ffmpeg and run (this will take a while):
 
-    ./ios-build.sh
+    ./tvos-build.sh
 
 Change directory back up to the main ppsspp directory and do the following:
 
-    mkdir build-ios
-    cd build-ios
-    cmake -DCMAKE_TOOLCHAIN_FILE=../cmake/Toolchains/ios.cmake -GXcode ..
+    ./b.sh --tvos-xcode
 
-You now should have an Xcode project file in the build-ios directory named PPSSPP.xcodeproj.  Open it up in Xcode and do Product->Build to build the debug version, or Product->Build For->Archiving to build the release version (which is much faster).  If your iOS device is plugged in, you may be able to just Run in Xcode to install and test it.  Otherwise, copy the PPSSPP app from build-ios/Debug-iphoneos/PPSSPP.app or build-ios/Release-iphoneos/PPSSPP.app to the /Applications directory on your device and from ssh or MobileTerminal do a "chmod +x PPSSPP" inside the PPSSPP.app directory.  If this is the first time you've installed the PPSSPP app, you'll have to respring or restart your device for the icon to show up.
+You should have an Xcode project file in the build-tvos-xcode directory named PPSSPP.xcodeproj. Open it in XCode, set up a provisioning profile and build it. 
+
+Uploading ROMs to PPSSPP:
+-------------------------------------------
+tvOS version contains a GCDWebServer for uploading content to PPSSPP. Make sure your device's WiFi is turned on and connected to the same network as your computer. Check your Apple TV IP address (or Bonjour name) and open a web browser     
+    
+    http://[appletv-ip]
