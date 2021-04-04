@@ -998,55 +998,47 @@ elseif(TVOS)
 		tvos/iCade/iCadeState.h
 		tvos/PVWebServer.m
 		tvos/PVWebServer.h
+		tvos/http/GCDWebDAVServer/GCDWebDAVServer.h
+		tvos/http/GCDWebDAVServer/GCDWebDAVServer.m
+		tvos/http/GCDWebServer/Core/GCDWebServer.h
+		tvos/http/GCDWebServer/Core/GCDWebServer.m
+		tvos/http/GCDWebServer/Core/GCDWebServerConnection.h
+		tvos/http/GCDWebServer/Core/GCDWebServerConnection.m
+		tvos/http/GCDWebServer/Core/GCDWebServerFunctions.h
+		tvos/http/GCDWebServer/Core/GCDWebServerFunctions.m
+		tvos/http/GCDWebServer/Core/GCDWebServerHTTPStatusCodes.h
+		tvos/http/GCDWebServer/Core/GCDWebServerPrivate.h
+		tvos/http/GCDWebServer/Core/GCDWebServerRequest.h
+		tvos/http/GCDWebServer/Core/GCDWebServerRequest.m
+		tvos/http/GCDWebServer/Core/GCDWebServerResponse.h
+		tvos/http/GCDWebServer/Core/GCDWebServerResponse.m
+		tvos/http/GCDWebServer/Requests/GCDWebServerDataRequest.h
+		tvos/http/GCDWebServer/Requests/GCDWebServerDataRequest.m
+		tvos/http/GCDWebServer/Requests/GCDWebServerFileRequest.h
+		tvos/http/GCDWebServer/Requests/GCDWebServerFileRequest.m
+		tvos/http/GCDWebServer/Requests/GCDWebServerMultiPartFormRequest.h
+		tvos/http/GCDWebServer/Requests/GCDWebServerMultiPartFormRequest.m
+		tvos/http/GCDWebServer/Requests/GCDWebServerURLEncodedFormRequest.h
+		tvos/http/GCDWebServer/Requests/GCDWebServerURLEncodedFormRequest.m
+		tvos/http/GCDWebServer/Responses/GCDWebServerDataResponse.h
+		tvos/http/GCDWebServer/Responses/GCDWebServerDataResponse.m
+		tvos/http/GCDWebServer/Responses/GCDWebServerErrorResponse.h
+		tvos/http/GCDWebServer/Responses/GCDWebServerErrorResponse.m
+		tvos/http/GCDWebServer/Responses/GCDWebServerFileResponse.h
+		tvos/http/GCDWebServer/Responses/GCDWebServerFileResponse.m
+		tvos/http/GCDWebServer/Responses/GCDWebServerStreamedResponse.h
+		tvos/http/GCDWebServer/Responses/GCDWebServerStreamedResponse.m
+		tvos/http/GCDWebUploader/GCDWebUploader.h
+		tvos/http/GCDWebUploader/GCDWebUploader.m
 	)
 
-	add_library(http STATIC
-	ext/http/GCDWebDAVServer/GCDWebDAVServer.h
-	ext/http/GCDWebDAVServer/GCDWebDAVServer.m
-	ext/http/GCDWebServer/Core/GCDWebServer.h
-	ext/http/GCDWebServer/Core/GCDWebServer.m
-	ext/http/GCDWebServer/Core/GCDWebServerConnection.h
-	ext/http/GCDWebServer/Core/GCDWebServerConnection.m
-	ext/http/GCDWebServer/Core/GCDWebServerFunctions.h
-	ext/http/GCDWebServer/Core/GCDWebServerFunctions.m
-	ext/http/GCDWebServer/Core/GCDWebServerHTTPStatusCodes.h
-	ext/http/GCDWebServer/Core/GCDWebServerPrivate.h
-	ext/http/GCDWebServer/Core/GCDWebServerRequest.h
-	ext/http/GCDWebServer/Core/GCDWebServerRequest.m
-	ext/http/GCDWebServer/Core/GCDWebServerResponse.h
-	ext/http/GCDWebServer/Core/GCDWebServerResponse.m
-	ext/http/GCDWebServer/Requests/GCDWebServerDataRequest.h
-	ext/http/GCDWebServer/Requests/GCDWebServerDataRequest.m
-	ext/http/GCDWebServer/Requests/GCDWebServerFileRequest.h
-	ext/http/GCDWebServer/Requests/GCDWebServerFileRequest.m
-	ext/http/GCDWebServer/Requests/GCDWebServerMultiPartFormRequest.h
-	ext/http/GCDWebServer/Requests/GCDWebServerMultiPartFormRequest.m
-	ext/http/GCDWebServer/Requests/GCDWebServerURLEncodedFormRequest.h
-	ext/http/GCDWebServer/Requests/GCDWebServerURLEncodedFormRequest.m
-	ext/http/GCDWebServer/Responses/GCDWebServerDataResponse.h
-	ext/http/GCDWebServer/Responses/GCDWebServerDataResponse.m
-	ext/http/GCDWebServer/Responses/GCDWebServerErrorResponse.h
-	ext/http/GCDWebServer/Responses/GCDWebServerErrorResponse.m
-	ext/http/GCDWebServer/Responses/GCDWebServerFileResponse.h
-	ext/http/GCDWebServer/Responses/GCDWebServerFileResponse.m
-	ext/http/GCDWebServer/Responses/GCDWebServerStreamedResponse.h
-	ext/http/GCDWebServer/Responses/GCDWebServerStreamedResponse.m
-	ext/http/GCDWebUploader/GCDWebUploader.h
-	ext/http/GCDWebUploader/GCDWebUploader.m
-	)
+	include_directories(tvos/http/GCDWebDAVServer)
+	include_directories(tvos/http/GCDWebServer/Core)
+	include_directories(tvos/http/GCDWebServer/Requests)
+	include_directories(tvos/http/GCDWebServer/Responses)
+	include_directories(tvos/http/GCDWebUploader)
 
-	include_directories(ext/http/GCDWebDAVServer)
-	include_directories(ext/http/GCDWebServer/Core)
-	include_directories(ext/http/GCDWebServer/Requests)
-	include_directories(ext/http/GCDWebServer/Responses)
-	include_directories(ext/http/GCDWebUploader)
-
-	set(nativeExtraLibs ${nativeExtraLibs} http)
-
-	set_property (TARGET http APPEND_STRING PROPERTY 
-              COMPILE_FLAGS "-fobjc-arc")
-
-	set(nativeExtraLibs ${nativeExtraLibs} "-framework Foundation -framework MediaPlayer -framework AudioToolbox -framework CoreGraphics -framework QuartzCore -framework UIKit -framework GLKit -framework OpenAL -framework AVFoundation -framework CoreLocation -framework CoreVideo -framework CoreMedia -framework MobileCoreServices -framework SystemConfiguration -lxml2" )
+	set(nativeExtraLibs ${nativeExtraLibs} "-framework Foundation -framework MediaPlayer -framework AudioToolbox -framework CoreGraphics -framework QuartzCore -framework UIKit -framework GLKit -framework OpenAL -framework AVFoundation -framework CoreLocation -framework CoreVideo -framework CoreMedia -framework MobileCoreServices -framework SystemConfiguration -framework CFNetwork -lxml2" )
 	if(EXISTS "${CMAKE_TVOS_SDK_ROOT}/System/Library/Frameworks/GameController.framework")
 		set(nativeExtraLibs ${nativeExtraLibs} "-weak_framework GameController")
 	endif()
@@ -1063,6 +1055,23 @@ elseif(TVOS)
 	set_source_files_properties(tvos/main.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
 	set_source_files_properties(tvos/CameraHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
 	set_source_files_properties(tvos/LocationHelper.mm PROPERTIES COMPILE_FLAGS -fobjc-arc)
+
+	set_source_files_properties(tvos/http/GCDWebDAVServer/GCDWebDAVServer.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Core/GCDWebServer.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Core/GCDWebServerConnection.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Core/GCDWebServerFunctions.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Core/GCDWebServerRequest.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Core/GCDWebServerResponse.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Requests/GCDWebServerDataRequest.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Requests/GCDWebServerFileRequest.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Requests/GCDWebServerMultiPartFormRequest.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Requests/GCDWebServerURLEncodedFormRequest.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Responses/GCDWebServerDataResponse.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Responses/GCDWebServerErrorResponse.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Responses/GCDWebServerErrorResponse.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Responses/GCDWebServerFileResponse.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebServer/Responses/GCDWebServerStreamedResponse.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
+	set_source_files_properties(tvos/http/GCDWebUploader/GCDWebUploader.m PROPERTIES COMPILE_FLAGS -fobjc-arc)
 
 	set(TargetBin PPSSPP)
 
@@ -2282,9 +2291,6 @@ if(TargetBin)
 		add_executable(${TargetBin} ${NativeAppSource})
 	endif()
 	target_link_libraries(${TargetBin} ${LinkCommon} Common)
-	if(TVOS)
-		target_link_libraries(http)
-	endif()
 endif()
 
 # installs
