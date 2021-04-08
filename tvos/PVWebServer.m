@@ -7,6 +7,7 @@
 //
 
 #import "PVWebServer.h"
+#import "AppDelegate.h"
 //@import PVSupport;
 
 // Web Server
@@ -103,7 +104,7 @@
         return NO;
     }
 
-//    [[UIApplication sharedApplication] setIdleTimerDisabled: YES];
+    [[UIApplication sharedApplication] setIdleTimerDisabled: YES];
     [self.handoffActivity becomeCurrent];
     
     return YES;
