@@ -154,7 +154,11 @@
 	}
 	
 	if (screen == [UIScreen mainScreen]) {
-		g_dpi = (IS_IPAD() ? 200.0f : 150.0f) * scale;
+#if TARGET_OS_TV
+        g_dpi = 300.0f * scale;
+#else
+        g_dpi = (IS_IPAD() ? 200.0f : 150.0f) * scale;
+#endif
 	} else {
 		float diagonal = sqrt(size.height * size.height + size.width * size.width);
 		g_dpi = diagonal * scale * 0.1f;
