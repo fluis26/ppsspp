@@ -2268,8 +2268,10 @@ if(TargetBin)
 			set_source_files_properties(${SHADER_FILES} PROPERTIES MACOSX_PACKAGE_LOCATION "MacOS/assets/shaders")
 		endif()
 
-		if(IOS)
+		if(IOS AND NOT TVOS)
 			add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource} "ios/Settings.bundle" "ios/Launch Screen.storyboard" "MoltenVK/iOS/Frameworks")
+		elseif(TVOS)
+			add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource} "tvos/Settings.bundle" "tvos/Launch Screen.storyboard" "MoltenVK/iOS/Frameworks" "tvos/http/GCDWebUploader/GCDWebUploader.bundle")
 		else()
 			add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource})
 			file(INSTALL "${CMAKE_SOURCE_DIR}/MoltenVK/macOS/Frameworks/libMoltenVK.dylib" DESTINATION "${CMAKE_BINARY_DIR}/PPSSPPSDL.app/Contents/Frameworks/")
@@ -2340,16 +2342,18 @@ if(IOS AND NOT TVOS)
 	)
 elseif(TVOS)
 	set(DEPLOYMENT_TARGET 11.4)
-	file(GLOB IOSAssets tvos/assets/*.png)
-	list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@2x.png)
-	list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@3x.png)
-	file(INSTALL ${IOSAssets} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets)
-	file(GLOB IOSAssets tvos/assets/Default-568h@*.png)
+	file(GLOB IOSAssets tvos/Assets.xcassets)
+	# file(GLOB IOSAssets tvos/assets/*.png)
+	# list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@2x.png)
+	# list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@3x.png)
+	# file(INSTALL ${IOSAssets} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets)
+	# file(GLOB IOSAssets tvos/assets/Default-568h@*.png)
 	file(INSTALL ${IOSAssets} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 	if(IOS_DEBUG)
 		file(INSTALL pspautotests DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets)
 	endif()
-	set(RSRC_XIB_FILES assets/Icon@2x.png)
+	set(RSRC_XIB_FILES Assets.xcassets)
+	# set(RSRC_XIB_FILES assets/Icon@2x.png)
 	set(RSRC_XIB_FILES "Launch Screen.storyboard")
 	set_source_files_properties(${RSRC_XIB_FILES}
 		PROPERTIES MACOSX_PACKAGE_LOCATION Resources
@@ -2372,7 +2376,7 @@ elseif(TVOS)
 		RESOURCE "tvos/Launch Screen.storyboard"
 		RESOURCE "tvos/Settings.bundle"
 		RESOURCE "MoltenVK/iOS/Frameworks"
-		RESOURCE "ext/http/GCDWebUploader/GCDWebUploader.bundle"
+		RESOURCE "tvos/http/GCDWebUploader/GCDWebUploader.bundle"
 		XCODE_ATTRIBUTE_TVOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}
 		XCODE_ATTRIBUTE_TARGETED_DEVICE_FAMILY "3"
 		XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES

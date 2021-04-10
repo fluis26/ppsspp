@@ -1,0 +1,18 @@
+{
+  "images" : [
+    {
+      "filename" : "PPSSPP_logo.svg.png",
+      "scale" : "1x",
+      "idiom" : "tv"
+    },
+    {
+      "idiom" : "tv",
+      "scale" : "2x",
+      "filename" : "PPSSPP_logo.svg@2x.png"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

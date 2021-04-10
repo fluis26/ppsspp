@@ -1,0 +1,20 @@
+{
+  "properties" : {
+    "canvasSize" : {
+      "width" : 1280,
+      "height" : 768
+    }
+  },
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  },
+  "layers" : [
+    {
+      "filename" : "PPSSPP_logo.svg.imagestacklayer"
+    },
+    {
+      "filename" : "ppsspp_background.imagestacklayer"
+    }
+  ]
+}
