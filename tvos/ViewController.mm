@@ -231,6 +231,10 @@ static LocationHelper *locationHelper;
     menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
     [self.view addGestureRecognizer:menuGestureRecognizer];
     
+    UILongPressGestureRecognizer *menuLongGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
+    menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
+    [self.view addGestureRecognizer:menuLongGestureRecognizer];
+    
     UITapGestureRecognizer *selectGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(selectKeyWasPressed)];
     selectGestureRecognizer.allowedPressTypes = @[@(UIPressTypeSelect)];
     [self.view addGestureRecognizer:selectGestureRecognizer];
