@@ -1921,7 +1921,8 @@ if(ANDROID)
 	endif()
 endif()
 
-set(CoreExtraLibs ${CoreExtraLibs} armips)
+set(CoreExtraLibs ${CoreExtraLibs} armips libzstd_static)
+include_directories(ext/zstd/lib)
 
 # needed for VK_USE_PLATFORM_XCB_KHR only
 #if(VULKAN AND NOT WIN32)
