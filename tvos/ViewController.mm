@@ -461,7 +461,7 @@ static LocationHelper *locationHelper;
 	if (sharedViewController)
 		graphicsContext->ThreadFrame();
 }
-
+#if TARGET_OS_IOS
 - (void)touchX:(float)x y:(float)y code:(int)code pointerId:(int)pointerId
 {
 	float scale = [UIScreen mainScreen].scale;
@@ -517,12 +517,6 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 	return -1;
 }
 
-//- (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
-//- (void)pressesChanged:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
-//- (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
-//- (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(nullable UIPressesEvent *)event NS_AVAILABLE_IOS(9_0);
-
-
 - (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
 	for(UITouch* touch in touches)
@@ -568,6 +562,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 		}
 	}
 }
+#endif
 
 - (void)bindDefaultFBO
 {
@@ -794,7 +789,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 		[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_10]; // Start
 	};
 
-//#if defined(__IPHONE_12_1) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_12_1
+#if defined(__IPHONE_12_1) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_12_1
 	if (extendedProfile.leftThumbstickButton != nil) {
 		extendedProfile.leftThumbstickButton.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_11];
@@ -805,8 +800,8 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_12];
 		};
 	}
-//#endif
-//#if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0
+#endif
+#if defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0
 	if (extendedProfile.buttonOptions != nil) {
 		extendedProfile.buttonOptions.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_13];
@@ -817,14 +812,14 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_14];
 		};
 	}
-//#endif
-//#if defined(__IPHONE_14_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_14_0
+#endif
+#if defined(__IPHONE_14_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_14_0
 	if (extendedProfile.buttonHome != nil) {
 		extendedProfile.buttonHome.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 			[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_15];
 		};
 	}
-//#endif
+#endif
 	
 	extendedProfile.leftThumbstick.xAxis.valueChangedHandler = ^(GCControllerAxisInput *axis, float value) {
 		AxisInput axisInput;
