@@ -12,14 +12,18 @@
 @interface ViewController : GLKViewController <iCadeEventDelegate,
             LocationHandlerDelegate, CameraFrameDelegate>
 
+#if TARGET_OS_IOS
 - (void)shareText:(NSString *)text;
+#endif
 - (void)shutdown;
 
 @end
 
 extern __unsafe_unretained ViewController* sharedViewController;
-//void setCameraSize(int width, int height);
-//void startVideo();
-//void stopVideo();
+#if TARGET_OS_IOS
+void setCameraSize(int width, int height);
+void startVideo();
+void stopVideo();
+#endif
 void startLocation();
 void stopLocation();

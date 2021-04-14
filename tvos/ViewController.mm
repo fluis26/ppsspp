@@ -113,9 +113,9 @@ static LocationHelper *locationHelper;
 @property (nonatomic, strong) EAGLContext* context;
 
 //@property (nonatomic) iCadeReaderView* iCadeView;
-//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 @property (nonatomic) GCController *gameController __attribute__((weak_import));
-//#endif
+#endif
 
 @end
 
@@ -148,13 +148,13 @@ static LocationHelper *locationHelper;
 
 		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(appWillTerminate:) name:UIApplicationWillTerminateNotification object:nil];
 
-//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 		if ([GCController class]) // Checking the availability of a GameController framework
 		{
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidConnect:) name:GCControllerDidConnectNotification object:nil];
 			[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(controllerDidDisconnect:) name:GCControllerDidDisconnectNotification object:nil];
 		}
-//#endif
+#endif
 	}
 	return self;
 }
@@ -226,14 +226,11 @@ static LocationHelper *locationHelper;
 	[self.view addSubview:self.iCadeView];
 	self.iCadeView.delegate = self;
 	self.iCadeView.active = YES;*/
-    
+#if TARGET_OS_TV
+    // Menu gesture needs to be overriden in GLKViewController to prevent app quitting to menu
     UITapGestureRecognizer *menuGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
     menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
     [self.view addGestureRecognizer:menuGestureRecognizer];
-    
-    UILongPressGestureRecognizer *menuLongGestureRecognizer = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
-    menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
-    [self.view addGestureRecognizer:menuLongGestureRecognizer];
     
     UITapGestureRecognizer *selectGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(selectKeyWasPressed)];
     selectGestureRecognizer.allowedPressTypes = @[@(UIPressTypeSelect)];
@@ -254,15 +251,15 @@ static LocationHelper *locationHelper;
     UISwipeGestureRecognizer *swipeRightGestureRecognizer = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(swipeRight)];
     swipeRightGestureRecognizer.direction = UISwipeGestureRecognizerDirectionRight;
     [self.view addGestureRecognizer:swipeRightGestureRecognizer];
-
+#endif
 	
-//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 	if ([GCController class]) {
 		if ([[GCController controllers] count] > 0) {
 			[self setupController:[[GCController controllers] firstObject]];
 		}
 	}
-//#endif
+#endif
 	
 	CGFloat margin = 0;
 	CGFloat height = 16;
@@ -310,77 +307,36 @@ static LocationHelper *locationHelper;
 	});
 }
 
+#if TARGET_OS_TV
 -(void)menuKeyWasPressed {
-    NSLog(@"Menu key was pressed");
+    // do nothing
 }
 
 -(void)selectKeyWasPressed {
-    NSLog(@"Select key was pressed");
-    KeyInput key;
-    key.deviceId = DEVICE_ID_PAD_0;
-    key.flags = KEY_DOWN;
-    key.keyCode = NKCODE_BUTTON_9;
-    NativeKey(key);
-    key.flags = KEY_UP;
-    NativeKey(key);
+    [self controllerButtonPressed:TRUE keyCode:NKCODE_BUTTON_2];
+    [self controllerButtonPressed:FALSE keyCode:NKCODE_BUTTON_2];
 }
 
 -(void)swipeDown {
-    NSLog(@"Swipe down");
-    KeyInput key;
-    key.deviceId = DEVICE_ID_PAD_0;
-    key.flags = KEY_DOWN;
-    key.keyCode = NKCODE_DPAD_DOWN;
-    NativeKey(key);
-    key.flags = KEY_UP;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
-        NativeKey(key);
-    });
-//    NativeKey(key);
+    [self controllerButtonPressed:TRUE keyCode:NKCODE_DPAD_DOWN];
+    [self controllerButtonPressed:FALSE keyCode:NKCODE_DPAD_DOWN];
 }
 
 -(void)swipeUp {
-    NSLog(@"Swipe up");
-    KeyInput key;
-    key.deviceId = DEVICE_ID_PAD_0;
-    key.flags = KEY_DOWN;
-    key.keyCode = NKCODE_DPAD_UP;
-    NativeKey(key);
-    key.flags = KEY_UP;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
-        NativeKey(key);
-    });
-//    NativeKey(key);
+    [self controllerButtonPressed:TRUE keyCode:NKCODE_DPAD_UP];
+    [self controllerButtonPressed:FALSE keyCode:NKCODE_DPAD_UP];
 }
 
 -(void)swipeLeft {
-    NSLog(@"Swipe left");
-    KeyInput key;
-    key.deviceId = DEVICE_ID_PAD_0;
-    key.flags = KEY_DOWN;
-    key.keyCode = NKCODE_DPAD_LEFT;
-    NativeKey(key);
-    key.flags = KEY_UP;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
-        NativeKey(key);
-    });
-//    NativeKey(key);
+    [self controllerButtonPressed:TRUE keyCode:NKCODE_DPAD_LEFT];
+    [self controllerButtonPressed:FALSE keyCode:NKCODE_DPAD_LEFT];
 }
 
 -(void)swipeRight {
-    NSLog(@"Swipe right");
-    KeyInput key;
-    key.deviceId = DEVICE_ID_PAD_0;
-    key.flags = KEY_DOWN;
-    key.keyCode = NKCODE_DPAD_RIGHT;
-    NativeKey(key);
-    key.flags = KEY_UP;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * USEC_PER_SEC), dispatch_get_main_queue(), ^{
-        NativeKey(key);
-    });
-//    NativeKey(key);
+    [self controllerButtonPressed:TRUE keyCode:NKCODE_DPAD_RIGHT];
+    [self controllerButtonPressed:FALSE keyCode:NKCODE_DPAD_RIGHT];
 }
-
+#endif
 - (void)didReceiveMemoryWarning
 {
 	[super didReceiveMemoryWarning];
@@ -424,11 +380,11 @@ static LocationHelper *locationHelper;
 
 	[[NSNotificationCenter defaultCenter] removeObserver:self];
 
-//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 	if ([GCController class]) {
 		self.gameController = nil;
 	}
-//#endif
+#endif
 
 	if (graphicsContext) {
 		graphicsContext->Shutdown();
@@ -679,7 +635,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 	
 }
 
-//#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
+#if __IPHONE_OS_VERSION_MAX_ALLOWED > __IPHONE_6_1
 - (void)controllerDidConnect:(NSNotification *)note
 {
 	if (![[GCController controllers] containsObject:self.gameController]) self.gameController = nil;
@@ -740,15 +696,23 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 	baseProfile.buttonA.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 		[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_2]; // Cross
 	};
-	
+#if TARGET_OS_IOS
 	baseProfile.buttonB.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 		[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_3]; // Circle
 	};
-	
+
 	baseProfile.buttonX.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 		[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_4]; // Square
 	};
-	
+#else /* Switch Circle and Square buttons because of long button B press that causes app to exit to tv menu and it cannot be overriden in GLKViewController*/
+    baseProfile.buttonB.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
+        [self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_4]; // Circle
+    };
+    
+    baseProfile.buttonX.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
+        [self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_3]; // Square
+    };
+#endif
 	baseProfile.buttonY.valueChangedHandler = ^(GCControllerButtonInput *button, float value, BOOL pressed) {
 		[self controllerButtonPressed:pressed keyCode:NKCODE_BUTTON_1]; // Triangle
 	};
@@ -858,7 +822,7 @@ int ToTouchID(UITouch *uiTouch, bool allowAllocate) {
 		NativeAxis(axisInput);
 	};
 }
-//#endif
+#endif
 
 #if TARGET_OS_IOS
 void setCameraSize(int width, int height) {
@@ -903,7 +867,17 @@ void OpenDirectory(const char *path) {
 
 void LaunchBrowser(char const* url)
 {
-	[[UIApplication sharedApplication] openURL:[NSURL URLWithString:[NSString stringWithCString:url encoding:NSStringEncodingConversionAllowLossy]]];
+//	[[UIApplication sharedApplication] openURL:[NSURL URLWithString:[NSString stringWithCString:url encoding:NSStringEncodingConversionAllowLossy]]];
+//    UIAlertController* alert = [UIAlertController alertControllerWithTitle:@"My Alert"
+//                               message:@"This is an alert."
+//                               preferredStyle:UIAlertControllerStyleAlert];
+//
+//
+//    UIAlertAction* defaultAction = [UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault
+//       handler:^(UIAlertAction * action) {}];
+//
+//    [alert addAction:defaultAction];
+//    [self presentViewController:alert animated:YES completion:nil];
 }
 
 void bindDefaultFBO()
