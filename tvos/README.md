@@ -43,3 +43,10 @@ Uploading ROMs to PPSSPP:
 tvOS version contains a GCDWebServer for uploading content to PPSSPP. Make sure your device's WiFi is turned on and connected to the same network as your computer. Check your Apple TV IP address (or Bonjour name) and open a web browser     
     
     http://[appletv-ip]
+
+Another option is to use WebDAV.
+
+Known issues
+--------------
+* ~~Sound stops working when the emulator exits to the AppleTV menu~~ Fixed by properly restarting audio 
+* When B (circle) button is held longer emulator exits to the Apple TV menu - there's a temporary workaround by switching square and circle buttons (circle buttons are usually used for long press actions). The issue is that main view controller GLKViewController inherits from the UIViewController, that means that game controller B button acts as menu button. To resolve this permanently main view controller must use GCEventViewController together with the GLKViewDelagate.

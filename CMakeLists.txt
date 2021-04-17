@@ -2272,7 +2272,7 @@ if(TargetBin)
 		if(IOS AND NOT TVOS)
 			add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource} "ios/Settings.bundle" "ios/Launch Screen.storyboard" "MoltenVK/iOS/Frameworks")
 		elseif(TVOS)
-			add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource} "tvos/Settings.bundle" "tvos/Launch Screen.storyboard" "MoltenVK/iOS/Frameworks" "tvos/http/GCDWebUploader/GCDWebUploader.bundle")
+			add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource} "tvos/Settings.bundle" "tvos/Launch Screen.storyboard" "MoltenVK/iOS/Frameworks" "tvos/http/GCDWebUploader/GCDWebUploader.bundle" "tvos/Images.xcassets")
 		else()
 			add_executable(${TargetBin} MACOSX_BUNDLE ${ICON_PATH_ABS} ${NativeAssets} ${SHADER_FILES} ${FLASH0_FILES} ${LANG_FILES} ${NativeAppSource})
 			file(INSTALL "${CMAKE_SOURCE_DIR}/MoltenVK/macOS/Frameworks/libMoltenVK.dylib" DESTINATION "${CMAKE_BINARY_DIR}/PPSSPPSDL.app/Contents/Frameworks/")
@@ -2344,7 +2344,7 @@ if(IOS AND NOT TVOS)
 elseif(TVOS)
 	set(DEPLOYMENT_TARGET 11.4)
 	file(GLOB IOSAssets tvos/Assets.xcassets)
-	# file(GLOB IOSAssets tvos/assets/*.png)
+	file(GLOB IOSAssets tvos/assets/*.png)
 	# list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@2x.png)
 	# list(REMOVE_ITEM IOSAssets ${CMAKE_CURRENT_SOURCE_DIR}/tvos/assets/Default-568h@3x.png)
 	# file(INSTALL ${IOSAssets} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets)
@@ -2353,7 +2353,7 @@ elseif(TVOS)
 	if(IOS_DEBUG)
 		file(INSTALL pspautotests DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/assets)
 	endif()
-	set(RSRC_XIB_FILES Assets.xcassets)
+	set(RSRC_XIB_FILES Images.xcassets)
 	# set(RSRC_XIB_FILES assets/Icon@2x.png)
 	set(RSRC_XIB_FILES "Launch Screen.storyboard")
 	set_source_files_properties(${RSRC_XIB_FILES}
@@ -2376,6 +2376,7 @@ elseif(TVOS)
 		MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/tvos/PPSSPP-Info.plist"
 		RESOURCE "tvos/Launch Screen.storyboard"
 		RESOURCE "tvos/Settings.bundle"
+		RESOURCE "tvos/Images.xcassets"
 		RESOURCE "MoltenVK/iOS/Frameworks"
 		RESOURCE "tvos/http/GCDWebUploader/GCDWebUploader.bundle"
 		XCODE_ATTRIBUTE_TVOS_DEPLOYMENT_TARGET ${DEPLOYMENT_TARGET}

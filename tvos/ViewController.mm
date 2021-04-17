@@ -228,7 +228,11 @@ static LocationHelper *locationHelper;
 	self.iCadeView.active = YES;*/
 #if TARGET_OS_TV
     // Menu gesture needs to be overriden in GLKViewController to prevent app quitting to menu
-    UITapGestureRecognizer *menuGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
+//    UITapGestureRecognizer *menuGestureRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
+//    menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
+//    [self.view addGestureRecognizer:menuGestureRecognizer];
+    
+    UIGestureRecognizer *menuGestureRecognizer = [[UIGestureRecognizer alloc] initWithTarget:self action:@selector(menuKeyWasPressed)];
     menuGestureRecognizer.allowedPressTypes = @[@(UIPressTypeMenu)];
     [self.view addGestureRecognizer:menuGestureRecognizer];
     
