@@ -6,7 +6,7 @@
 	url = https://github.com/hrydgard/ppsspp-lang.git
 [submodule "ffmpeg"]
 	path = ffmpeg
-	url = https://github.com/hrydgard/ppsspp-ffmpeg.git
+	url = git@github.com:marekvi95/ppsspp-ffmpeg.git
 [submodule "dx9sdk"]
 	path = dx9sdk
 	url = https://github.com/hrydgard/minidx9.git
