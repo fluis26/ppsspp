@@ -203,6 +203,7 @@ private:
 
 static BackgroundAnimation g_CurBackgroundAnimation = BackgroundAnimation::OFF;
 static std::unique_ptr<Animation> g_Animation;
+static bool bgTextureInited = false;
 
 void UIBackgroundInit(UIContext &dc) {
 	const std::string bgPng = GetSysDirectory(DIRECTORY_SYSTEM) + "background.png";
@@ -216,9 +217,15 @@ void UIBackgroundInit(UIContext &dc) {
 void UIBackgroundShutdown() {
 	bgTexture.reset(nullptr);
 	g_Animation.reset(nullptr);
+	g_CurBackgroundAnimation = BackgroundAnimation::OFF;
+	bgTextureInited = false;
 }
 
 void DrawBackground(UIContext &dc, float alpha) {
+	if (!bgTextureInited) {
+		UIBackgroundInit(dc);
+		bgTextureInited = true;
+	}
 	if (g_CurBackgroundAnimation != (BackgroundAnimation)g_Config.iBackgroundAnimation) {
 		g_CurBackgroundAnimation = (BackgroundAnimation)g_Config.iBackgroundAnimation;
 
@@ -478,7 +485,7 @@ NewLanguageScreen::NewLanguageScreen(const std::string &title) : ListPopupScreen
 #endif
 	langValuesMapping = GetLangValuesMapping();
 
-	std::vector<FileInfo> tempLangs;
+	std::vector<File::FileInfo> tempLangs;
 	VFSGetFileListing("lang", &tempLangs, "ini");
 	std::vector<std::string> listing;
 	int selected = -1;
@@ -501,7 +508,7 @@ NewLanguageScreen::NewLanguageScreen(const std::string &title) : ListPopupScreen
 		}
 #endif
 
-		FileInfo lang = tempLangs[i];
+		File::FileInfo lang = tempLangs[i];
 		langs_.push_back(lang);
 
 		std::string code;
